@@ -8,17 +8,25 @@ def main():
     parser.add_argument('-e', '--score_a', action='store_true', help='Only output score_a')
     parser.add_argument('-u', '--score_b', action='store_true', help='Only output score_b')
     parser.add_argument('-s', '--output_count', action='store_true', help='Output fragmentation count')
-
+    parser.add_argument('-n', '--isNUMA', action='store_true', help='judge system is numa')
     args = parser.parse_args()
     if args.output_count:
         extfrag = ExtFrag(interval=args.interval,output_count=True)
     else:
-        if args.score_a:
-            extfrag = ExtFrag(interval=args.interval, output_score_a=True, output_score_b=False)
-        elif args.score_b:
-            extfrag = ExtFrag(interval=args.interval, output_score_a=False, output_score_b=True)
+        if not args.isNUMA:
+            if args.score_a:
+                extfrag = ExtFrag(interval=args.interval, output_score_a=True, output_score_b=False,isNUMA=False)
+            elif args.score_b:
+                extfrag = ExtFrag(interval=args.interval, output_score_a=False, output_score_b=True,isNUMA=False)
+            else:
+                extfrag = ExtFrag(interval=args.interval,isNUMA=False)
         else:
-            extfrag = ExtFrag(interval=args.interval)
+            if args.score_a:
+                extfrag = ExtFrag(interval=args.interval, output_score_a=True, output_score_b=False,isNUMA=True)
+            elif args.score_b:
+                extfrag = ExtFrag(interval=args.interval, output_score_a=False, output_score_b=True,isNUMA=True)
+            else:
+                extfrag = ExtFrag(interval=args.interval,isNUMA=True)
 
     extfrag.run()
 

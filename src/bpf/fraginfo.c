@@ -1,6 +1,7 @@
- #include <uapi/linux/ptrace.h>
+ 	#include <uapi/linux/ptrace.h>
         #include <linux/mm.h>
         #include <linux/gfp.h>
+        #define MAX_ORDER 10
 
         struct pgdat_info {
             u64 pgdat_ptr;

@@ -1,23 +1,161 @@
 #!/usr/bin/env python3
 import argparse
-import time
-import curses
+import urwid
 from extfrag import ExtFrag
 
-def main(screen):
-    curses.curs_set(0)  # 隐藏光标 
-    screen.nodelay(True) 
-    screen.clear()
-    curses.start_color()
-    curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
-    curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
-    curses.init_pair(3, curses.COLOR_YELLOW, curses.COLOR_BLACK)
-    curses.init_pair(4, curses.COLOR_BLUE, curses.COLOR_BLACK)
-    curses.init_pair(5, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
-    curses.init_pair(6, curses.COLOR_CYAN, curses.COLOR_BLACK)
-    curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_BLACK)
+
+palette = [
+    ('header', 'light blue', ''),
+    ('body', 'light green', ''),
+    ('highlight', 'light red', ''),
+    ('reversed', 'standout', ''),
+]
 
 
+column_explanations = {
+    "COMM": "The name of the memory zone,such as DMA, Normal.",
+    "ZONE_PFN": "Starting page frame number of the memory zone.",
+    "SUM_PAGES": "Total number of pages in the zone.",
+    "FACT_PAGES": "Number of pages in the zone currently in use.",
+    "ORDER": "The order of the allocation request.",
+    "TOTAL": "Total number of free blocks in this zone.",
+    "SUITABLE": "Number of blocks suitable for the allocation.",
+    "FREE": "Total number of free pages in the zone.",
+    "SCORE": "Score representing fragmentation (higher is worse).",
+    "SCORE1": "Score A: Score representing fragmentation based on metric A.",
+    "SCORE2": "Score B: Score representing fragmentation based on metric B.",
+    "FRAG_BAR": "A visual representation of the fragmentation score."
+}
+
+# 定义不同数据值的解释
+value_explanations = {
+    "TOTAL": lambda value: f"Total number of free blocks: {value}",
+    "SUITABLE": lambda value: f"Number of suitable blocks: {value}",
+    "FREE": lambda value: f"Total number of free pages: {value}",
+    "ORDER": lambda value: f"Allocation order: {value}",
+}
+
+def show_tooltip(text):
+    """ 显示提示信息 """
+    tooltip = urwid.Filler(urwid.Text(text, align='center'))
+    overlay = urwid.Overlay(urwid.LineBox(tooltip),
+                            loop.widget, align='center', width=('relative', 60),
+                            valign='middle', height=('relative', 20),
+                            min_width=40, min_height=5)
+    
+    loop.widget = overlay
+    loop.draw_screen()  # 确保立即重绘屏幕以显示提示框
+
+def item_clicked(column, value):
+    """ 处理点击事件 """
+    if column in column_explanations:
+        explanation = column_explanations[column]
+        # if column in value_explanations:
+        #     explanation += f"\n\nCurrent Value: {value}\n{value_explanations[column](value)}"
+        # else:
+        #     explanation += f"\n\nCurrent Value: {value}"
+        show_tooltip(explanation)
+
+def handle_tooltip_input(key):
+    """处理提示框输入，按任意键返回主界面"""
+    loop.widget = main_widget  # 返回主界面
+
+def create_table(extfrag, args):
+    # 构建表头
+    if args.score_a or args.score_b:
+        header = ["COMM", "ZONE_PFN", "SUM_PAGES", "FACT_PAGES", 
+                  "ORDER", "TOTAL", "SUITABLE", "FREE", "SCORE"]
+        if args.bar:
+            header.append("FRAG_BAR")
+    else:
+        header = ["COMM", "ZONE_PFN", "SUM_PAGES", "FACT_PAGES", 
+                  "ORDER", "TOTAL", "SUITABLE", "FREE", "SCORE1", "SCORE2"]
+        if args.bar:
+            header.append("FRAG_BAR")
+    
+    header_widgets = [urwid.AttrMap(ClickableText(urwid.Text(col, align='center'), col, col), 'header') for col in header]
+    header_row = urwid.Columns(header_widgets)
+
+    # 构建数据行
+    rows = [header_row]
+    zone_data = extfrag.get_zone_data()
+    
+    for comm, zones in zone_data.items():
+        if args.comm and comm != args.comm:
+            continue  
+        for zone in zones:
+            columns = ["comm", "zone_pfn", "spanned_pages", "present_pages", 
+                       "order", "free_blocks_total", "free_blocks_suitable", "free_pages"]
+            if args.score_a:
+                columns.append("scoreA")
+            elif args.score_b:
+                columns.append("scoreB")
+            else:
+                columns.extend(["scoreA", "scoreB"])
+
+            # 根据条件设置颜色
+            color = 'body'
+            order = int(zone.get('order', 0))
+            scoreB = float(zone.get('scoreB', 0))
+            if order > 5 and scoreB > 0.5:
+                color = 'highlight'
+
+            cell_widgets = []
+            for col in columns:
+                value = str(zone.get(col, ""))
+                text = urwid.Text(value, align='center')
+                # 将文本包装为可点击的Widget
+                clickable_text = urwid.AttrMap(ClickableText(text, col, value), color, focus_map='reversed')
+                cell_widgets.append(clickable_text)
+
+            if args.bar:
+                score = float(zone.get("scoreA" if args.score_a else "scoreB", 0))
+                frag_bar = generate_fragmentation_bar(score)
+                bar_text = urwid.Text(frag_bar, align='center')
+                cell_widgets.append(urwid.AttrMap(bar_text, color))
+            
+            row = urwid.Columns(cell_widgets)
+            rows.append(row)
+    
+    table = urwid.Pile(rows)
+    # 添加外层滚动
+    table_with_scroll = urwid.Filler(table, valign='top')
+    return table_with_scroll
+
+def generate_fragmentation_bar(score, max_length=20):
+    """生成用于显示碎片化程度的条形图"""
+    proportion = min(max(score, 0), 1)
+    bar_length = int(proportion * max_length)
+    return  '#' * bar_length + '-' * (max_length - bar_length) 
+
+def handle_input(key):
+    """处理键盘输入以关闭提示框"""
+    if isinstance(loop.widget, urwid.Overlay):
+        handle_tooltip_input(key)  # 处理提示框输入
+    else:
+        if key in ('q', 'Q'):
+            raise urwid.ExitMainLoop()
+
+class ClickableText(urwid.WidgetWrap):
+    """自定义可点击文本Widget"""
+    def __init__(self, text_widget, column, value):
+        super().__init__(text_widget)
+        self.column = column
+        self.value = value
+
+    def selectable(self):
+        return True
+
+    def keypress(self, size, key):
+        return key
+
+    def mouse_event(self, size, event, button, x, y, focus):
+        if event == 'mouse press' and button == 1:
+            item_clicked(self.column, self.value)
+            return True
+        return False
+
+def main():
     parser = argparse.ArgumentParser(description='Watch memory fragmentation with real-time updates')
     parser.add_argument('-d', '--delay', type=int, default=5, help='Delay between updates in seconds')
     parser.add_argument('-n', '--node_info', action='store_true', help='Output node information')
@@ -25,106 +163,19 @@ def main(screen):
     parser.add_argument('-e', '--score_a', action='store_true', help='Only output score_a')
     parser.add_argument('-u', '--score_b', action='store_true', help='Only output score_b')
     parser.add_argument('-s', '--output_count', action='store_true', help='Output fragmentation count')
+    parser.add_argument('-b', '--bar', action='store_true', help='Display fragmentation bar')  
     args = parser.parse_args()
 
-    extfrag = ExtFrag(interval=args.delay if args.delay else 0,output_count=args.output_count,output_score_a=args.score_a,output_score_b=args.score_b)  
-    saved_event_data = []  # 用于保存事件数据
-    try:
-        while True:
-            screen.clear()
-            row = 0
-            max_rows, max_cols = screen.getmaxyx()
+    extfrag = ExtFrag(interval=args.delay if args.delay else 0, output_count=args.output_count,
+                      output_score_a=args.score_a, output_score_b=args.score_b)
 
-            if args.node_info:
-                # 获取并打印节点信息
-                node_data = extfrag.get_node_data()
-                if not node_data:
-                    screen.addstr(0, 0, "please wait...",curses.color_pair(4))
-                else:
-                    header = f"{'Node ID':>10} {'Number of Zones':>20} {'PGDAT Pointer':>25}\n"
-                    screen.addstr(row, 0, header,curses.color_pair(4))
-                    row += 1
-                    for node_id, node in node_data.items():
-                        line = f"{node_id:>10} {node['nr_zones']:>20} {node['pgdat_ptr']:>25}\n"
-                        if row < max_rows - 1:  # 确保不超出屏幕行数
-                            if len(line) < max_cols - 1:  # 确保行内字符数不超出屏幕宽度
-                                screen.addstr(row, 0, line)
-                                row += 1
-                            else:
-                                screen.addstr(row, 0, line[:max_cols - 1])
-                                row += 1
-                    
-            elif args.output_count:
-                # 打印外碎片化发生的次数
-                event_data = extfrag.get_event_data()
-                saved_event_data.extend(event_data)
-                header = f"{'COUNTS':>5} {'PFN':>10} {'ALLOC_ORDER':>25} {'FALLBACK_ORDER':>15} " \
-                         f"{'ALLOC_MIGRATETYPE':>15} {'FALLBACK_MIGRATETYPE':>15} {'CHANGE_OWNERSHIP':>15}  \n"
-                screen.addstr(0, 0, header,curses.color_pair(4))
-                row =1
-                for event in saved_event_data:
-                    line = f"{event['index']:>5} {event['pfn']:>15} {event['alloc_order']:>15} {event['fallback_order']:>15} " \
-                           f"{event['alloc_migratetype']:>15} {event['fallback_migratetype']:>15} {event['change_ownership']:>15}\n"
-                    if row < max_rows - 1:  # 确保不超出屏幕行数
-                        if len(line) < max_cols - 1:  # 确保行内字符数不超出屏幕宽度
-                            screen.addstr(row, 0, line)
-                            row += 1
-                        else:
-                            screen.addstr(row, 0, line[:max_cols - 1])
-                            row += 1
-                screen.refresh()
-                if args.delay is not None:
-                        time.sleep(args.delay)
-                else:
-                        time.sleep(1) 
-
-            else:
-                # 获取并打印区域信息
-                zone_data = extfrag.get_zone_data()
-                if args.score_a or args.score_b:
-                    header = f"{'COMM':>5} {'ZONE_PFN':>15} {'SUM_PAGES':>15} {'FACT_PAGES':>15} " \
-                         f"{'ORDER':>15} {'TOTAL':>15} {'SUITABLE':>15} {'FREE':>15} {'SCORE':>15} \n"
-                else:
-                    header = f"{'COMM':>5} {'ZONE_PFN':>15} {'SUM_PAGES':>15} {'FACT_PAGES':>15} " \
-                         f"{'ORDER':>15} {'TOTAL':>15} {'SUITABLE':>15} {'FREE':>15} {'SCORE1':>15} {'SCORE2':>15}\n"
-                screen.addstr(0, 0, header,curses.color_pair(4))
-                row = 1
-                for comm, zones in zone_data.items():
-                    if args.comm and comm != args.comm:
-                        continue  
-                    for zone in zones:
-                        color = curses.color_pair(1)
-                        if zone['order'] > 5 and float(zone['scoreB']) > 0.5:
-                             color = curses.color_pair(2)  # 红色，表示高风险
-                        if args.score_a :
-                            line = f"{zone['comm']:>5} {zone['zone_pfn']:>15} {zone['spanned_pages']:>15} " \
-                               f"{zone['present_pages']:>15} {zone['order']:>15} {zone['free_blocks_total']:>15} " \
-                               f"{zone['free_blocks_suitable']:>15} {zone['free_pages']:>15}  {zone['scoreA']:>15} \n"
-                        elif  args.score_b:
-                            line = f"{zone['comm']:>5} {zone['zone_pfn']:>15} {zone['spanned_pages']:>15} " \
-                               f"{zone['present_pages']:>15} {zone['order']:>15} {zone['free_blocks_total']:>15} " \
-                               f"{zone['free_blocks_suitable']:>15} {zone['free_pages']:>15}  {zone['scoreB']:>15} \n"
-                        else:
-                            line = f"{zone['comm']:>5} {zone['zone_pfn']:>15} {zone['spanned_pages']:>15} " \
-                               f"{zone['present_pages']:>15} {zone['order']:>15} {zone['free_blocks_total']:>15} " \
-                               f"{zone['free_blocks_suitable']:>15} {zone['free_pages']:>15}  {zone['scoreA']:>15} {zone['scoreB']:>15}\n"
-                        if row < max_rows - 1:  # 确保不超出屏幕行数
-                            if len(line) < max_cols - 1:  # 确保行内字符数不超出屏幕宽度
-                                screen.addstr(row, 0, line,color)
-                                row += 1
-                            else:
-                                screen.addstr(row, 0, line[:max_cols - 1],color)
-                                row += 1
-
-            screen.refresh()
-            time.sleep(args.delay)
-
-    except KeyboardInterrupt:
-        pass
+    global loop, main_widget
+    main_widget = create_table(extfrag, args)
+    loop = urwid.MainLoop(main_widget, palette, unhandled_input=handle_input)
+    loop.run()
 
 if __name__ == "__main__":
-    curses.wrapper(main)
-
+    main()
 
 
 

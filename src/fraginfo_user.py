@@ -27,22 +27,23 @@ column_explanations = {
     "SCORE": "Score representing fragmentation (higher is worse).",
     "SCORE1": "Score A: Score representing fragmentation based on metric A.",
     "SCORE2": "Score B: Score representing fragmentation based on metric B.",
-    'NODE_ID':"zone is in this node",
-    "FRAG_BAR": "A visual representation of the fragmentation score."
+    'NODE_ID': "Unique identifier for the node associated with this zone.",
+    "FRAG_BAR": "A visual representation of the fragmentation score, where more '#' characters indicate higher fragmentation.",
 }
-# 定义不同数据值的解释
-value_explanations = {
-    "Node ID": lambda value: f"Unique identifier of this node: {value}",
-    "Number of Zones": lambda value: f"Number of memory zones: {value}",
-    "PGDAT Pointer": lambda value: f"Memory address of pgdat structure: {value}",
-}
+
+# # 定义不同数据值的解释
+# value_explanations = {
+#     "Node ID": lambda value: f"Unique identifier of this node: {value}",
+#     "Number of Zones": lambda value: f"Number of memory zones: {value}",
+#     "PGDAT Pointer": lambda value: f"Memory address of pgdat structure: {value}",
+# }
 
 all_node_data = []
 def show_tooltip(text):
     """ 显示提示信息 """
     tooltip = urwid.Filler(urwid.Text(text, align='center'))
     overlay = urwid.Overlay(urwid.LineBox(tooltip),
-                            loop.widget, align='center', width=('relative', 60),
+                            loop.widget, align='center', width=('relative', 40),
                             valign='middle', height=('relative', 20),
                             min_width=40, min_height=5)
     
@@ -64,23 +65,50 @@ def item_clicked(column, value):
     """ 处理点击事件 """
     if column in column_explanations:
         explanation = column_explanations[column]
-        if column in value_explanations:
-            explanation += f"\n\nCurrent Value: {value}\n{value_explanations[column](value)}"
-        else:
-            explanation += f"\n\nCurrent Value: {value}"
         show_tooltip(explanation)
 
 def handle_tooltip_input(key):
     """处理提示框输入，按任意键返回主界面"""
     loop.widget = main_widget  # 返回主界面
 
-def create_node_table(extfrag, args):
+def create_node_table11(extfrag, args):
     """构建并显示所有 Node 信息"""
     rows = []
     
     # 定义表头
     header = ["Node ID", "Number of Zones", "PGDAT Pointer"]
     header_widgets = [urwid.AttrMap(urwid.Text(col, align='center'), 'header') for col in header]
+    header_row = urwid.Columns(header_widgets)
+    rows.append(header_row)  # 添加表头行
+    
+    # 获取节点数据并更新全局数组
+    node_data = extfrag.get_node_data()
+    add_or_update_node_data(node_data.values())
+
+    # 遍历全局数组中的所有节点并将其数据添加到表格行中
+    for node in all_node_data:
+        cell_widgets = [
+            ClickableText(urwid.Text(str(node['node_id']), align='center'), 'Node ID', str(node['node_id'])),
+            ClickableText(urwid.Text(str(node['nr_zones']), align='center'), 'Number of Zones', str(node['nr_zones'])),
+            ClickableText(urwid.Text(str(node['pgdat_ptr']), align='center'), 'PGDAT Pointer', str(node['pgdat_ptr'])),
+            # urwid.Text(str(node['nr_zones']), align='center'),
+            # urwid.Text(str(node['pgdat_ptr']), align='center')
+        ]
+        row = urwid.Columns(cell_widgets)
+        rows.append(row)  # 将每个节点的信息添加为一行
+
+    # 将所有行组合成一个表格
+    table = urwid.Pile(rows)
+    table_with_scroll = urwid.Filler(table, valign='top')
+    return table_with_scroll
+
+def create_node_table(extfrag, args):
+    """构建并显示所有 Node 信息"""
+    rows = []
+    
+    # 定义表头并使用 ClickableText
+    header = ["Node ID", "Number of Zones", "PGDAT Pointer"]
+    header_widgets = [urwid.AttrMap(ClickableText(urwid.Text(col, align='center'), col, col), 'header') for col in header]
     header_row = urwid.Columns(header_widgets)
     rows.append(header_row)  # 添加表头行
     
@@ -103,56 +131,23 @@ def create_node_table(extfrag, args):
     table_with_scroll = urwid.Filler(table, valign='top')
     return table_with_scroll
 
-
-
-
-def create_node_table1(extfrag, args):
-    """构建并显示Node信息"""
-    rows = []
-    header = ["Node ID", "Number of Zones", "PGDAT Pointer"]
-    header_widgets = [urwid.AttrMap(ClickableText(urwid.Text(col, align='center'), col, col), 'header') for col in header]
-    header_row = urwid.Columns(header_widgets)
-    rows.append(header_row)
-
-    node_data = extfrag.get_node_data()
-    sorted_node_ids = sorted(node_data.keys())
-
-    for node_id in sorted_node_ids:
-        node = node_data[node_id]
-        columns = ["node_id", "nr_zones", "pgdat_ptr"]
-        cell_widgets = []
-        for col in columns:
-            value = str(node.get(col, ""))
-            text = urwid.Text(value, align='center')
-            clickable_text = urwid.AttrMap(ClickableText(text, col, value), 'body', focus_map='reversed')
-            cell_widgets.append(clickable_text)
-        row = urwid.Columns(cell_widgets)
-        rows.append(row)
-    
-    table = urwid.Pile(rows)
-    table_with_scroll = urwid.Filler(table, valign='top')
-    return table_with_scroll
-
 def create_zone_table(extfrag, args):
     """构建并显示Zone信息"""
     rows = []
+    base_header = ["COMM", "ZONE_PFN", "SUM_PAGES", "FACT_PAGES", 
+                  "ORDER", "TOTAL", "SUITABLE", "FREE","NODE_ID"]
+    score_columns = []
     if args.score_a:
-        header = ["COMM", "ZONE_PFN", "SUM_PAGES", "FACT_PAGES", 
-                  "ORDER", "TOTAL", "SUITABLE", "FREE", "SCORE1","NODE_ID"]
-        if args.bar:
-                header.append("FRAG_BAR")
+        score_columns.append("SCORE1")
     elif args.score_b:
-        header = ["COMM", "ZONE_PFN", "SUM_PAGES", "FACT_PAGES", 
-                  "ORDER", "TOTAL", "SUITABLE", "FREE", "SCORE2","NODE_ID"]
-        if args.bar:
-                header.append("FRAG_BAR")
+        score_columns.append("SCORE2")
     else:
-        header = ["COMM", "ZONE_PFN", "SUM_PAGES", "FACT_PAGES", 
-                  "ORDER", "TOTAL", "SUITABLE", "FREE", "SCORE1", "SCORE2","NODE_ID"]
-        if args.bar:
-                header.append("FRAG_BAR")
+        score_columns = ["SCORE1","SCORE2"]
+    if args.bar:
+        score_columns.append("FRAG_BAR")
+    full_header = base_header + score_columns 
 
-    header_widgets = [urwid.AttrMap(ClickableText(urwid.Text(col, align='center'), col, col), 'header') for col in header]
+    header_widgets = [urwid.AttrMap(ClickableText(urwid.Text(col, align='center'), col, col), 'header') for col in full_header]
     header_row = urwid.Columns(header_widgets)
     rows.append(header_row)
 
@@ -164,15 +159,16 @@ def create_zone_table(extfrag, args):
                 continue
             if args.comm is not None and zone.get('comm') != args.comm:
                 continue
+            
             if args.score_a:
                 columns = ["comm", "zone_pfn", "spanned_pages", "present_pages", 
-                           "order", "free_blocks_total", "free_blocks_suitable", "free_pages", "scoreA","node_id"]
+                           "order", "free_blocks_total", "free_blocks_suitable", "free_pages","node_id", "scoreA"]
             elif args.score_b:
                 columns = ["comm", "zone_pfn", "spanned_pages", "present_pages", 
-                           "order", "free_blocks_total", "free_blocks_suitable", "free_pages", "scoreB","node_id"]
+                           "order", "free_blocks_total", "free_blocks_suitable", "free_pages", "node_id","scoreB"]
             else:
                 columns = ["comm", "zone_pfn", "spanned_pages", "present_pages", 
-                           "order", "free_blocks_total", "free_blocks_suitable", "free_pages", "scoreA", "scoreB","node_id"]
+                           "order", "free_blocks_total", "free_blocks_suitable", "free_pages","node_id", "scoreA", "scoreB"]
 
             cell_widgets = []
             for col in columns:
@@ -181,10 +177,11 @@ def create_zone_table(extfrag, args):
                 clickable_text = urwid.AttrMap(ClickableText(text, col, value), 'body', focus_map='reversed')
                 cell_widgets.append(clickable_text)
             if args.bar:
-                score = float(zone.get("scoreB" , 0))
+                score = float(zone.get("scoreB", 0))
                 frag_bar = generate_fragmentation_bar(score)
-                bar_widget = urwid.Text(frag_bar, align='center')
-                cell_widgets.append(bar_widget)
+                frag_bar_widget = ClickableText(urwid.Text(frag_bar, align='center'), "FRAG_BAR", frag_bar)
+                cell_widgets.append(urwid.AttrMap(frag_bar_widget, 'body', focus_map='highlight'))
+
             row = urwid.Columns(cell_widgets)
             rows.append(row)
 
@@ -234,6 +231,7 @@ class ClickableText(urwid.WidgetWrap):
             item_clicked(self.column, self.value)
             return True
         return False
+
 
 def main():
     try:

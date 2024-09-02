@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import urwid
+import traceback  # 在文件开头导入traceback模块
 from extfrag import ExtFrag
 
 # 定义颜色调色板
@@ -31,12 +32,7 @@ column_explanations = {
     "FRAG_BAR": "A visual representation of the fragmentation score, where more '#' characters indicate higher fragmentation.",
 }
 
-# # 定义不同数据值的解释
-# value_explanations = {
-#     "Node ID": lambda value: f"Unique identifier of this node: {value}",
-#     "Number of Zones": lambda value: f"Number of memory zones: {value}",
-#     "PGDAT Pointer": lambda value: f"Memory address of pgdat structure: {value}",
-# }
+
 
 all_node_data = []
 def show_tooltip(text):
@@ -70,37 +66,6 @@ def item_clicked(column, value):
 def handle_tooltip_input(key):
     """处理提示框输入，按任意键返回主界面"""
     loop.widget = main_widget  # 返回主界面
-
-def create_node_table11(extfrag, args):
-    """构建并显示所有 Node 信息"""
-    rows = []
-    
-    # 定义表头
-    header = ["Node ID", "Number of Zones", "PGDAT Pointer"]
-    header_widgets = [urwid.AttrMap(urwid.Text(col, align='center'), 'header') for col in header]
-    header_row = urwid.Columns(header_widgets)
-    rows.append(header_row)  # 添加表头行
-    
-    # 获取节点数据并更新全局数组
-    node_data = extfrag.get_node_data()
-    add_or_update_node_data(node_data.values())
-
-    # 遍历全局数组中的所有节点并将其数据添加到表格行中
-    for node in all_node_data:
-        cell_widgets = [
-            ClickableText(urwid.Text(str(node['node_id']), align='center'), 'Node ID', str(node['node_id'])),
-            ClickableText(urwid.Text(str(node['nr_zones']), align='center'), 'Number of Zones', str(node['nr_zones'])),
-            ClickableText(urwid.Text(str(node['pgdat_ptr']), align='center'), 'PGDAT Pointer', str(node['pgdat_ptr'])),
-            # urwid.Text(str(node['nr_zones']), align='center'),
-            # urwid.Text(str(node['pgdat_ptr']), align='center')
-        ]
-        row = urwid.Columns(cell_widgets)
-        rows.append(row)  # 将每个节点的信息添加为一行
-
-    # 将所有行组合成一个表格
-    table = urwid.Pile(rows)
-    table_with_scroll = urwid.Filler(table, valign='top')
-    return table_with_scroll
 
 def create_node_table(extfrag, args):
     """构建并显示所有 Node 信息"""
@@ -188,6 +153,21 @@ def create_zone_table(extfrag, args):
     table = urwid.Pile(rows)
     table_with_scroll = urwid.Filler(table, valign='top')
     return table_with_scroll
+def create_event_table(extfrag,args):
+    event_data = extfrag.get_event_data()
+    rows = []
+    headers = ["Index", "PFN", "Alloc_Order", "Fallback_Order", "Alloc_Migratetype", "Fallback_Migratetype", "Change_Ownership"]
+    header_widgets = [urwid.AttrMap(ClickableText(urwid.Text(col, align='center'), col, col), 'header') for col in headers]
+    header_row = urwid.Columns(header_widgets)
+    rows.append(header_row)
+
+    for event in event_data:
+        cell_widgets = [urwid.Text(str(event[col.lower()]), align='center') for col in headers]
+        row = urwid.Columns(cell_widgets)
+        rows.append(row)
+
+    table = urwid.Pile(rows)
+    return urwid.Filler(table, valign='top')
 
 def generate_fragmentation_bar(score, max_length=20):
     """生成用于显示碎片化程度的条形图"""
@@ -201,6 +181,8 @@ def refresh_data(loop, user_data):
     extfrag, args = user_data
     if args.node_info:
         main_widget = create_node_table(extfrag, args)
+    elif args.output_count:
+        main_widget = create_event_table(extfrag,args)
     else:
         main_widget = create_zone_table(extfrag, args)
     loop.widget = main_widget
@@ -253,18 +235,24 @@ def main():
 
         if args.node_info:
             main_widget = create_node_table(extfrag, args)
+        elif args.output_count:
+            main_widget = create_event_table(extfrag,args)
         else:
             main_widget = create_zone_table(extfrag, args)
 
         loop = urwid.MainLoop(main_widget, palette, unhandled_input=handle_input)
-
-        loop.set_alarm_in(args.delay, refresh_data, (extfrag, args))
+        if args.output_count:
+            loop.set_alarm_in(args.delay, refresh_data, (extfrag,args))
+        else:
+            loop.set_alarm_in(args.delay, refresh_data, (extfrag, args))
 
         loop.run()
     except KeyboardInterrupt:
         print("Exiting program...")
     except Exception as e:
         print(f"An error occurred: {e}")
+        traceback.print_exc()  # 打印出完整的堆栈跟踪信息
 
 if __name__ == "__main__":
     main()
+

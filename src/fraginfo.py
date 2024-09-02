@@ -129,3 +129,4 @@ class ExtFrag:
                 time.sleep(self.interval)
             except KeyboardInterrupt:
                 exit()
+

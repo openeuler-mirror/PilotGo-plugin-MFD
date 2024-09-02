@@ -14,6 +14,7 @@ Linux系统物理内存碎片可视化监控工具
 - 使用一种可视化工具对当前收集的物理内存碎片化信息进行直观展示。
 
 ## 开发技术
+
  - 内核态：eBPF
  - 用户态：Python
 
@@ -28,7 +29,7 @@ Linux系统物理内存碎片可视化监控工具
 一般来说，要使用这些功能，需要 Linux 内核版本 4.1 或更高版本，内核版本通过`uname -r`来查看
 
 <div align=center>
-<img src="./img/image.png" alt="内核配置" div-align="center"/>
+<img src="./img/2.png" alt="内核配置" div-align="center"/>
 </div>
 
 - OS : Ubuntu 22.04
@@ -106,16 +107,114 @@ ls
 执行ls会发现有很多python文件，执行`sudo python3 biolatency.py`
 
 <div align=center>
-<img src="./img/image-1.png" alt="image-20240528221443832" div-align="center"/>
+<img src="./img/1.png" alt="image-20240528221443832" div-align="center"/>
 </div>
 
 此时则代表环境配置成功
+## 代码架构
+```
+.src
+├── bpf
+│   ├── extfraginfo.c
+│   ├── fraginfo.c
+│   └── numafraginfo.c
+├── extfrag.py
+├── extfrag_user.py
+└── __pycache__
+    ├── extfrag.cpython-310.pyc
+    └── extfrag_user.cpython-310.pyc
+```
+- `extfrag.py` 文件，用于实现 BPF 程序和数据采集
+
+-  `extfrag_user.py` 文件，用于实现命令行接口。
+
+-  `extfraginfo.c`实现监测外碎片化事件
+
+- `fraginfo.c` 是在UMA架构下的统计内存节点中的所有 `zone` 对于不同 `order` 的碎片化程度，
+
+- `numafraginfo.c`是在NUMA架构下的统计所有内存节点中的所有`zone` 对于不同 `order` 的碎片化程度
+
+采集的碎片化程度信息如下：
+- COMM：表示`zone`的名称，有DMA/NORMAL/DMA32等
+- ZONE_PFN：表示该内存区域从哪一个物理页框号开始。
+- SUM_PAGES: 此区域内的总页数，指内存区域总共包含的物理内存页数。
+- FACT_PAGES:此区域实际使用中的页数
+- ORDER：表示页块的大小
+- TOTAL：该区域内空闲块的总数
+- SUITABLE：适合当前分配请求的空闲块数
+- FREE：该区域内空闲页的总数
+- NODE_ID：表示内存节点的标识符
+- SCORE1：表示内核中 extfrag_index
+- SCORE2：表示内核中的  unusable_index
+
+
+采集的节点信息如下：
+
+- Node ID:表示内存节点的标识符
+- Number of Zones:节点中的区域个数
+- PGDAT Pointer:节点的pgdat结构体指针地址
 
 ## 使用说明
+1.避免每次都要显式使用 `python` 命令来运行脚本，你可以为脚本添加一个 shebang 行，然后确保脚本具有可执行权限。
+- 给`extfrag_user.py`  和`extfrag.py`添加一个 shebang 行`#!/usr/bin/env python3`
+- 为脚本添加可执行权限
+```
+chmod +x extfrag_user.py
+chmod +x extfrag.py
+```
+现在可以使用`sudo ./extfrag_user.py`来直接运行脚本
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+2.  使用`sudo ./extfrag_user.py -h`查看帮助函数
+
+<div align=center>
+<img src="./img/3.png" alt="image-20240528221443832" div-align="center"/>
+</div>
+
+3.  查看UMA架构下的信息
+
+- 使用`sudo ./extfrag_user.py -n`查看node节点的信息：
+
+<div align=center>
+<img src="./img/4.png" alt="image-20240528221443832" div-align="center"/>
+</div>
+
+- 使用`sudo ./extfrag_user.py -d 2`查看node节点的内存碎片化程度信息：
+
+<div align=center>
+<img src="./img/5.png" alt="image-20240528221443832" div-align="center"/>
+</div>
+
+4.  查看NUMA架构下的信息
+
+- 使用`sudo ./extfrag_user.py -n`查看node节点的信息：
+
+<div align=center>
+<img src="./img/11.png" alt="image-20240528221443832" div-align="center"/>
+</div>
+
+
+- 使用`sudo ./extfrag_user.py -d 2`查看node节点的内存碎片化程度信息：
+
+<div align=center>
+<img src="./img/6.png" alt="image-20240528221443832" div-align="center"/>
+</div>
+
+<div align=center>
+<img src="./img/7.png" alt="image-20240528221443832" div-align="center"/>
+</div>
+
+- 使用`sudo ./extfrag_user.py -d 2 -i 1`仅查看node_id=1的内存碎片化程度信息：
+
+<div align=center>
+<img src="./img/8.png" alt="image-20240528221443832" div-align="center"/>
+</div>
+
+- 使用`sudo ./extfrag_user.py -d 2 -c Normal`仅查看node类型为 Normal 的内存碎片化程度信息：
+
+<div align=center>
+<img src="./img/10.png" alt="image-20240528221443832" div-align="center"/>
+</div>
+
 
 ## 参与贡献
 

@@ -18,7 +18,7 @@ BPF_PERF_OUTPUT(events);
 BPF_HASH(counts_map, u32, u64);
 
 TRACEPOINT_PROBE(kmem, mm_page_alloc_extfrag) {
-    u32 cpu_id = bpf_get_smp_processor_id();  // 获取当前 CPU ID
+    u32 cpu_id=0;  // 获取当前 CPU ID
     u64 *count = counts_map.lookup(&cpu_id);
     if (count) {
         (*count)++;
@@ -43,3 +43,4 @@ TRACEPOINT_PROBE(kmem, mm_page_alloc_extfrag) {
 
     return 0;
 }
+

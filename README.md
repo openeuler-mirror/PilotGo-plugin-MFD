@@ -23,7 +23,7 @@ Linux系统物理内存碎片可视化监控工具
 
 ## BCC环境配置
 
-本项目基于BCC进行开发，因此需要安装BCC环境，[参考文档](https://github.com/iovisor/bcc/blob/master/INSTALL.md)，在这里我采用源码安装的方式
+本项目基于BCC进行开发，因此需要安装BCC环境，[参考文档](https://github.com/iovisor/bcc/blob/master/INSTALL.md)
 
 ### 使用环境
 一般来说，要使用这些功能，需要 Linux 内核版本 4.1 或更高版本，内核版本通过`uname -r`来查看
@@ -32,15 +32,15 @@ Linux系统物理内存碎片可视化监控工具
 <img src="./img/2.png" alt="内核配置" div-align="center"/>
 </div>
 
-- OS : Ubuntu 22.04
-- Kernel: Linux 6.5
-
-### 更新系统包
+- OS : Ubuntu 22.04 、openeuler-24.03
+- Kernel: Linux 6.5+
+### 源码安装bcc环境
+#### 更新系统包
 
 ```
 sudo apt update
 ```
-###  安装构建依赖项
+#### 安装构建依赖项
 
 这里根据自己的ubuntu版本来选择
 ```
@@ -78,7 +78,7 @@ sudo apt-get -y install zip bison build-essential cmake flex git libedit-dev \
 sudo apt-get -y install luajit luajit-5.1-dev
 ```
 
-### 安装并编译BCC
+#### 安装并编译BCC
 
 
 ```
@@ -93,12 +93,12 @@ make
 sudo make install
 popd
 ```
-### 常见问题
+#### 常见问题
  `No module named 'setuptools'`
 
 解决办法：python默认是没有安装setuptools这个模块的，进行安装 `sudo apt-get install
 python3-setuptools`
-### 测试是否安装成功
+#### 测试是否安装成功
 
 ```
 cd bcc/tools
@@ -111,18 +111,62 @@ ls
 </div>
 
 此时则代表环境配置成功
+
+### 使用软件包配置BCC环境
+#### 安装软件包
+
+执行命令`sudo dnf install bcc`会自动安装 bcc开发的相关环境及工具，例如`bpf-tools、python3-bpfcc、llvm-libs、clang-libs`等。
+
+<div align=center>
+<img src="./img/12.png" alt="image-20240528221443832" div-align="center"/>
+</div>
+
+<div align=center>
+<img src="./img/13.png" alt="image-20240528221443832" div-align="center"/>
+</div>
+
+
+#### 报错记录
+安装完成之后，我们进入到默认的安装目录`/usr/share/bcc`中，可以看到有个文件夹`tools`。进入该文件夹下，使用sudo运行一个二进制文件结果如下报错，我们需要去执行`sudo dnf install kernel-devel-$(uname -r)`安装当前运行内核版本的开发包即可解决。
+
+<div align=center>
+<img src="./img/14.png" alt="image-20240528221443832" div-align="center"/>
+</div>
+
+
+再次执行`sudo  ./execsnoop`成功截图，说明bcc环境通过软件包的形式安装好了
+
+<div align=center>
+<img src="./img/14.png" alt="image-20240528221443832" div-align="center"/>
+</div>
+
+#### 克隆仓库
+通过`git clone git@gitee.com:gyxforeveryoung/PilotGo-plugin-MFD.git`项目代码到本地，并通过命令安装以下包：
+```
+pip install urwid
+pip install bcc
+pip install numba
+pip install pytest
+```
+接着会报错，如下图：
+<div align=center>
+<img src="./img/16.png" alt="image-20240528221443832" div-align="center"/>
+</div>
+
+这个错误，我们需要去`extfrag.py`代码中修改`from bpf import BPF` 为`from bpfcc import BPF`即可解决
+
 ## 代码架构
 ```
-.src
-├── bpf
-│   ├── extfraginfo.c
-│   ├── fraginfo.c
-│   └── numafraginfo.c
-├── extfrag.py
-├── extfrag_user.py
-└── __pycache__
-    ├── extfrag.cpython-310.pyc
-    └── extfrag_user.cpython-310.pyc
+├── img
+├── README.en.md
+├── README.md
+└── src
+    ├── bpf
+    │   ├── extfraginfo.c
+    │   ├── fraginfo.c
+    │   └── numafraginfo.c
+    ├── extfrag.py
+    └── extfrag_user.py
 ```
 - `extfrag.py` 文件，用于实现 BPF 程序和数据采集
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from bcc import BPF
+from bpfcc import BPF
 import os
 import time
 

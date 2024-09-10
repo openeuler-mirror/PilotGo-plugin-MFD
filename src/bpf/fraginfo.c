@@ -112,7 +112,7 @@ int kprobe__rmqueue_bulk(struct pt_regs *ctx, struct zone *zone,
       struct contig_page_info ctg_info;
       fill_contig_page_info(z, a_order, &ctg_info);
       zone_data.free_blocks_suitable = ctg_info.free_blocks_suitable;
-     zone_data.free_blocks_total = ctg_info.free_blocks_total;
+      zone_data.free_blocks_total = ctg_info.free_blocks_total;
       zone_data.free_pages = ctg_info.free_pages;
   
       tmp = unusable_free_index(a_order, &ctg_info);

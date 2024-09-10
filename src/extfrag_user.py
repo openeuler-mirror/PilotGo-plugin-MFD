@@ -100,7 +100,7 @@ def create_node_table(extfrag, args):
 def create_zone_table(extfrag, args):
     rows = []
     base_header = ["COMM", "ZONE_PFN", "SUM_PAGES", "FACT_PAGES", 
-                  "ORDER", "TOTAL", "SUITABLE", "FREE", "NODE_ID", "SCORE1", "SCORE2"]
+                  "ORDER", "TOTAL", "SUITABLE", "FREE", "NODE_ID"]
     score_columns = []
     if args.score_a:
         score_columns.append("SCORE1")
@@ -189,7 +189,8 @@ def refresh_data(loop, user_data):
     elif args.output_count:
         main_widget = create_event_table(extfrag,args)
     else:
-        main_widget = create_zone_table(extfrag, args)
+        main_widget = create_zone_table(extfrag,args)
+        # main_widget = create_zone_table(extfrag, args)
     loop.widget = main_widget
     loop.set_alarm_in(args.delay, refresh_data, user_data) 
 
@@ -243,7 +244,8 @@ def main():
         elif args.output_count:
             main_widget = create_event_table(extfrag,args)
         else:
-            main_widget = create_zone_table(extfrag, args)
+            main_widget = create_zone_table(extfrag,args)
+            # main_widget = create_zone_table(extfrag, args)
 
         loop = urwid.MainLoop(main_widget, palette, unhandled_input=handle_input)
         if args.output_count:

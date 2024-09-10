@@ -2,7 +2,12 @@
 from bpfcc import BPF
 import os
 import time
-
+def get_node_data_addr():
+    with open("/proc/kallsyms", "r") as f:
+        for line in f:
+            if "node_data" in line:
+                return int(line.split()[0], 16)
+    return None
 class ExtFrag:
     def __init__(self, interval=5, output_score_a=False, output_score_b=False, output_count=False):
         self.isNUMA = self.is_numa()
@@ -129,4 +134,3 @@ class ExtFrag:
                 time.sleep(self.interval)
             except KeyboardInterrupt:
                 exit()
-

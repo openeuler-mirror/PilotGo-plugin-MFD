@@ -224,7 +224,7 @@ class ClickableText(urwid.WidgetWrap):
 def main():
     try:
         parser = argparse.ArgumentParser(description='Watch memory fragmentation with real-time updates')
-        parser.add_argument('-d', '--delay', type=int, help='Delay between updates in seconds', default=2)
+        parser.add_argument('-d', '--delay', type=int, help='Delay between updates in seconds', default=2)   
         parser.add_argument('-n', '--node_info', action='store_true', help='Output node information')
         parser.add_argument('-i', '--node_id', type=int, help='Specify Node ID to get zone information')
         parser.add_argument('-c', '--comm', type=str, help='Filter by comm name')
@@ -233,8 +233,8 @@ def main():
         parser.add_argument('-s', '--output_count', action='store_true', help='Output fragmentation count')
         parser.add_argument('-b', '--bar', action='store_true', help='Display fragmentation bar')
         args = parser.parse_args()
-
-        extfrag = ExtFrag(interval=args.delay if args.delay else 0, output_count=args.output_count,
+        
+        extfrag = ExtFrag(interval=args.delay if args.delay else 2, output_count=args.output_count,
                           output_score_a=args.score_a, output_score_b=args.score_b)
 
         global loop, main_widget

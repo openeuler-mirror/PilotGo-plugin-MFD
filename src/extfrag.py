@@ -2,6 +2,8 @@
 from bpfcc import BPF
 import os
 import time
+import ctypes
+
 def get_node_data_addr():
     with open("/proc/kallsyms", "r") as f:
         for line in f:
@@ -9,12 +11,14 @@ def get_node_data_addr():
                 return int(line.split()[0], 16)
     return None
 class ExtFrag:
-    def __init__(self, interval=5, output_score_a=False, output_score_b=False, output_count=False):
+    def __init__(self, interval=2, output_score_a=False, output_score_b=False,output_count=False):
         self.isNUMA = self.is_numa()
         self.interval = interval
         self.output_score_a = output_score_a
         self.output_score_b = output_score_b
         self.output_count = output_count
+        
+ 
 
         if self.output_count:
             self.b = BPF(src_file="./bpf/extfraginfo.c")
@@ -22,6 +26,8 @@ class ExtFrag:
             self.b = BPF(src_file="./bpf/fraginfo.c")
         else:
             self.b = BPF(src_file="./bpf/numafraginfo.c")
+        delay_key = 0
+        self.b["delay_map"][delay_key] = ctypes.c_int(interval)
 
     def is_numa(self):
         nodes_path = "/sys/devices/system/node/"

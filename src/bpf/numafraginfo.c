@@ -1,6 +1,6 @@
 #include <linux/gfp.h>
 #include <linux/mm.h>
-#include <linux/mmzone.h>  
+#include <linux/mmzone.h>  // 包含额外的头文件以获取结构定义
 #include <uapi/linux/ptrace.h>
 
 #define MAX_ORDER 11  // 定义最大的 order
@@ -25,6 +25,14 @@ struct zone_info {
   int score_b;
   int node_id;
 };
+struct alloc_context {
+	struct zonelist *zonelist;
+	nodemask_t *nodemask;
+	struct zoneref *preferred_zoneref;
+	int migratetype;
+	enum zone_type highest_zoneidx;
+	bool spread_dirty_pages;
+};
 
 struct contig_page_info {
   unsigned long free_pages;
@@ -34,6 +42,9 @@ struct contig_page_info {
 
 BPF_HASH(pgdat_map, u64, struct pgdat_info);
 BPF_HASH(zone_map, u64, struct zone_info);
+BPF_HASH(last_time_map, u64, u64);
+BPF_ARRAY(delay_map, int, 1);
+
 static int unusable_free_index(unsigned int order,
                                struct contig_page_info *info) {
   if (info->free_pages == 0)
@@ -43,6 +54,17 @@ static int unusable_free_index(unsigned int order,
       info->free_pages);
 }
 
+
+static unsigned int extfrag_for_order( unsigned int order,struct contig_page_info *info)
+{
+
+	if (info->free_pages == 0)
+		return 0;
+
+	return div_u64((info->free_pages -
+			(info->free_blocks_suitable << order)) * 100,
+			info->free_pages);
+}
 static int __fragmentation_index(unsigned int order,
                                  struct contig_page_info *info) {
   unsigned long requested = 1UL << order;
@@ -77,18 +99,29 @@ static void fill_contig_page_info(struct zone *zone,
   }
 }
 
-int kprobe__rmqueue_bulk(struct pt_regs *ctx, struct zone *zone,
-                         unsigned int order, unsigned long count,
-                         struct list_head *list, int migratetype,
-                         unsigned int alloc_flags) {
+int kprobe__get_page_from_freelist(struct pt_regs *ctx, gfp_t gfp_mask, unsigned int order, int alloc_flags,const struct alloc_context *ac) {
+  u64 *last_time, current_time;
+  current_time = bpf_ktime_get_ns();  // 获取当前时间
+  last_time = last_time_map.lookup(&current_time);
+  int key = 0;
+    int *delay_ptr = delay_map.lookup(&key);
+    int delay;
+    if (delay_ptr) {
+        delay = *delay_ptr;
+    }
+  if (last_time && (current_time - *last_time < delay*1000000000)) {
+    return 0;  
+  }
+
  
   struct pglist_data *pgdat;
   struct zone *z;
   struct zoneref *zref;
-  int i, tmp, index;
+  int i, tmp, index,res;
   unsigned int a_order;
-
-  pgdat = zone->zone_pgdat;
+ 
+  // pgdat = zone->zone_pgdat;
+  pgdat=ac->preferred_zoneref->zone->zone_pgdat;
 
   for (i = 0; i < MAX_NR_ZONES; i++) {
      struct zone_info zone_data = {};
@@ -141,11 +174,14 @@ int kprobe__rmqueue_bulk(struct pt_regs *ctx, struct zone *zone,
       zone_data.score_b = tmp;
       index = __fragmentation_index(a_order, &ctg_info);
       zone_data.score_a = index;
+   
       bpf_trace_printk("-++++++++++%d===%d", zone_data.score_a,
                        zone_data.score_b);
       zone_map.update(&zone_key, &zone_data);
       zone_key++;
     }
+
   }
+  last_time_map.update(&current_time, &current_time);
   return 0;
 }

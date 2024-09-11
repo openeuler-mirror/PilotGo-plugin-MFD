@@ -32,6 +32,12 @@ column_explanations = {
     "SCORE2": "Score B: Score representing fragmentation based on metric B.",
     'NODE_ID': "Unique identifier for the node associated with this zone.",
     "FRAG_BAR": "A visual representation of the fragmentation score, where more '#' characters indicate higher fragmentation.",
+    "PCOMM": "The name of the process that triggered the event",
+    "PID":"The process ID associated with the event, which uniquely identifies the process that initiated the memory allocation or fallback.",
+    "PFN":"Page Frame Number, representing the index of the physical page in memory involved in the allocation or fallback.",
+    "ALLOC_ORDER":"The order (in terms of power of 2 pages) of the memory allocation request. For example, an order of 0 refers to a single page, while an order of 2 refers to 4 contiguous pages.",
+    "FALLBACK_ORDER":"The order of the memory block that was actually allocated when a fallback occurred, possibly smaller or different than the original request.",
+    "COUNT":"The number of occurrences of the event, typically counting how many times this allocation or fallback has happened during the trace.",
 }
 
 
@@ -217,7 +223,7 @@ def create_score_table(extfrag, args):
 def create_event_table(extfrag,args):
     event_data = extfrag.get_count_data()
     rows = []
-    headers = ["COMM", "PID", "PFN", "ALLOC_ORDER", "FALLBACK_ORDER","COUNT"]
+    headers = ["PCOMM", "PID", "PFN", "ALLOC_ORDER", "FALLBACK_ORDER","COUNT"]
     header_widgets = [urwid.AttrMap(ClickableText(urwid.Text(col, align='center'), col, col), 'header') for col in headers]
     header_row = urwid.Columns(header_widgets)
     rows.append(header_row)

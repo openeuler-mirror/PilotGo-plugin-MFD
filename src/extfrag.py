@@ -88,6 +88,33 @@ class ExtFrag:
             node_data_dict[node_id] = data
 
         return node_data_dict
+    def get_count_data(self):
+        count_data_list = []
+        counts_map = self.b["counts_map"]  # 'counts_map' 是 BPF 程序中的哈希表名
+
+        # 从BPF哈希表中提取所有数据
+        for key, value in counts_map.items():
+            data = {
+                'comm':value.comm,
+                'pid': value.pid,
+                'pfn': value.pfn,
+                'alloc_order': value.alloc_order,
+                'fallback_order': value.fallback_order,
+                'count': value.count
+                
+            }
+            count_data_list.append(data)
+
+        # 根据 'count' 字段进行降序排序
+        count_data_list.sort(key=lambda x: x['count'], reverse=True)
+
+        # # 输出排序后的数据
+        # for data in count_data_list:
+        #     print(f"PID: {data['pid']}, PFN: {data['pfn']}, Alloc Order: {data['alloc_order']}, "
+        #           f"Fallback Order: {data['fallback_order']}, Count: {data['count']}")
+
+        return count_data_list
+
 
     def print_event(self, cpu, data, size):
         event = self.b["events"].event(data)
@@ -130,10 +157,10 @@ class ExtFrag:
 
     def run(self):
         if self.output_count:
-            print("%-7s %-10s %-12s %-15s %-18s %-18s %-18s" % (
-                "CALLS", "PFN", "ALLOC_ORDER", "FALLBACK_ORDER", "ALLOC_MIGRATETYPE", "FALLBACK_MIGRATYPE", "CHANGE_OWNERSHIP"
+            print("%-7s %-10s %-12s %-15s %-18s %-22s" % (
+              "COMM",  "PID", "PFN", "ALLOC_ORDER", "FALLBACK_ORDER","COUNT"
             ))
-            self.b["events"].open_perf_buffer(self.print_event)
+            # self.b["events"].open_perf_buffer(self.print_event)
         while True:
             try:
                 self.b.perf_buffer_poll(timeout=100)

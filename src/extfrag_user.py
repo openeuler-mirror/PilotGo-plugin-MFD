@@ -5,6 +5,11 @@ import time
 import curses
 from extfrag import ExtFrag
 
+def generate_fragmentation_bar(score, max_length=20):
+    """生成用于显示碎片化程度的条形图"""
+    proportion = min(max(score, 0), 1)
+    bar_length = int(proportion * max_length)
+    return '#' * bar_length + '-' * (max_length - bar_length)
 def main(screen):
     curses.curs_set(0)  # 隐藏光标 
     screen.nodelay(True) 
@@ -80,14 +85,18 @@ def main(screen):
                 else:
                     zone_data = extfrag.get_zone_data()
                 if args.score_a:
-                     header = f"{'ZONE_COMM':>5} {'ZONE_PFN':>15} {'SUM_PAGES':>25} {'FACT_PAGES':>25} " \
-                         f"{'ORDER':>22} {'TOTAL':>25} {'SUITABLE':>25} {'FREE':>25} {'NODE_ID':>25} {'extfrag_index':>25} \n"
+                     header =f"{'ZONE_COMM':>5} {'ZONE_PFN':>15} {'SUM_PAGES':>20} {'FACT_PAGES':>20} " \
+                         f"{'ORDER':>15} {'TOTAL':>20} {'SUITABLE':>20} {'FREE':>20} {'NODE_ID':>20} {'extfrag_index':>25}"
                 elif args.score_b:
-                    header = f"{'ZONE_COMM':>5} {'ZONE_PFN':>15} {'SUM_PAGES':>25} {'FACT_PAGES':>25} " \
-                         f"{'ORDER':>22} {'TOTAL':>25} {'SUITABLE':>25} {'FREE':>25} {'NODE_ID':>25} {'unusable_index':>25} \n"
+                    header =  f"{'ZONE_COMM':>5} {'ZONE_PFN':>15} {'SUM_PAGES':>20} {'FACT_PAGES':>20} " \
+                         f"{'ORDER':>15} {'TOTAL':>20} {'SUITABLE':>20} {'FREE':>20} {'NODE_ID':>20} {'unusable_index':>25} "
                 else:
-                    header = f"{'ZONE_COMM':>5} {'ZONE_PFN':>15} {'SUM_PAGES':>25} {'FACT_PAGES':>25} " \
-                         f"{'ORDER':>22} {'TOTAL':>25} {'SUITABLE':>25} {'FREE':>25} {'NODE_ID':>25} {'extfrag_index':>25} {'unusable_index':>25}\n"
+                    header = f"{'ZONE_COMM':>5} {'ZONE_PFN':>15} {'SUM_PAGES':>20} {'FACT_PAGES':>20} " \
+                         f"{'ORDER':>15} {'TOTAL':>20} {'SUITABLE':>20} {'FREE':>20} {'NODE_ID':>20} {'extfrag_index':>25} {'unusable_index':>25}"
+                if args.bar:
+                    header+=f"{'BAR':>25}\n"
+                else:
+                    header+="\n"
                 screen.addstr(0, 0, header,curses.color_pair(4))
                 row = 1
                 for comm, zones in zone_data.items():
@@ -99,17 +108,23 @@ def main(screen):
                         if zone['order'] > 5 and float(zone['scoreB']) > 0.5:
                              color = curses.color_pair(2)  # 红色，表示高风险
                         if args.score_a :
-                            line = f"{zone['comm']:^6} {zone['zone_pfn']:^25} {zone['spanned_pages']:^25} " \
-                               f"{zone['present_pages']:^25} {zone['order']:^25} {zone['free_blocks_total']:^25} " \
-                               f"{zone['free_blocks_suitable']:^25} {zone['free_pages']:^25} {zone['node_id']:^25} {zone['scoreA']:^20} \n"
+                            line = f"{zone['comm']:^9} {zone['zone_pfn']:^20} {zone['spanned_pages']:^22} " \
+                               f"{zone['present_pages']:^18} {zone['order']:^15} {zone['free_blocks_total']:^25} " \
+                               f"{zone['free_blocks_suitable']:^15} {zone['free_pages']:^25} {zone['node_id']:^15} {zone['scoreA']:^20} "
                         elif  args.score_b:
-                            line = f"{zone['comm']:^6} {zone['zone_pfn']:^25} {zone['spanned_pages']:^25} " \
-                               f"{zone['present_pages']:^25} {zone['order']:^25} {zone['free_blocks_total']:^25} " \
-                               f"{zone['free_blocks_suitable']:^25} {zone['free_pages']:^25} {zone['node_id']:^25} {zone['scoreB']:^20} \n"
+                            line = f"{zone['comm']:^9} {zone['zone_pfn']:^20} {zone['spanned_pages']:^22} " \
+                               f"{zone['present_pages']:^18} {zone['order']:^15} {zone['free_blocks_total']:^25} " \
+                               f"{zone['free_blocks_suitable']:^15} {zone['free_pages']:^25} {zone['node_id']:^15} {zone['scoreB']:^20} "
                         else:
-                            line = f"{zone['comm']:^6} {zone['zone_pfn']:^25} {zone['spanned_pages']:^25} " \
-                               f"{zone['present_pages']:^25} {zone['order']:^25} {zone['free_blocks_total']:^25} " \
-                               f"{zone['free_blocks_suitable']:^25} {zone['free_pages']:^25} {zone['node_id']:^25} {zone['scoreA']:^20} {zone['scoreB']:^25}\n"
+                            line = f"{zone['comm']:^9} {zone['zone_pfn']:^20} {zone['spanned_pages']:^22} " \
+                               f"{zone['present_pages']:^18} {zone['order']:^15} {zone['free_blocks_total']:^25} " \
+                               f"{zone['free_blocks_suitable']:^15} {zone['free_pages']:^25} {zone['node_id']:^15} {zone['scoreA']:^20} {zone['scoreB']:^25}"
+                        if args.bar:
+                            score = float(zone.get("scoreA" if args.score_a else "scoreB", 0))
+                            frag_bar = generate_fragmentation_bar(score)
+                            line += f" {frag_bar:^40}\n" 
+                        else:
+                            line+="\n"
                         if row < max_rows - 1:  # 确保不超出屏幕行数
                             if len(line) < max_cols - 1:  # 确保行内字符数不超出屏幕宽度
                                 screen.addstr(row, 0, line,color)
@@ -124,11 +139,15 @@ def main(screen):
                 else:
                     zone_data = extfrag.get_zone_data()
                 if args.score_a:
-                    header =f"{'ZONE_COMM':<30}  {'NODE_ID':<23} {'ORDER':>40} {'extfrag_index':>52} \n"
+                    header =f"{'ZONE_COMM':<30}  {'NODE_ID':<23} {'ORDER':>40} {'extfrag_index':>52} "
                 elif args.score_b:
-                    header = f"{'ZONE_COMM':<30}  {'NODE_ID':<23} {'ORDER':>40}  {'unusable_index':>52} \n"
+                    header = f"{'ZONE_COMM':<30}  {'NODE_ID':<23} {'ORDER':>40}  {'unusable_index':>52} "
                 else:
-                    header = f"{'ZONE_COMM':<30}  {'NODE_ID':<23} {'ORDER':>40} {'extfrag_index':>52} {'unusable_index':>30} \n"
+                    header = f"{'ZONE_COMM':<30}  {'NODE_ID':<23} {'ORDER':>40} {'extfrag_index':>52} {'unusable_index':>30} "
+                if args.bar:
+                    header+=f"{'BAR':>25}\n"
+                else:
+                    header+="\n"
                 screen.addstr(row, 0, header,curses.color_pair(4))
                 row = 1
                 for comm, zones in zone_data.items():
@@ -139,11 +158,17 @@ def main(screen):
                         if zone['order'] > 5 and float(zone['scoreB']) > 0.5:
                              color = curses.color_pair(2)  # 红色，表示高风险
                         if args.score_a :
-                            line = f"{zone['comm']:^7}  {zone['node_id']:^55}  {zone['order']:^55} {zone['scoreA']:^45} \n"
+                            line = f"{zone['comm']:^7}  {zone['node_id']:^55}  {zone['order']:^55} {zone['scoreA']:^45} "
                         elif  args.score_b:
-                            line = f"{zone['comm']:^7}  {zone['node_id']:^55}  {zone['order']:^55} {zone['scoreB']:^45} \n"
+                            line = f"{zone['comm']:^7}  {zone['node_id']:^55}  {zone['order']:^55} {zone['scoreB']:^45} "
                         else:
-                            line = f"{zone['comm']:^7}  {zone['node_id']:^55}  {zone['order']:^55} {zone['scoreA']:^45}  {zone['scoreB']:^15} \n"
+                            line = f"{zone['comm']:^7}  {zone['node_id']:^55}  {zone['order']:^55} {zone['scoreA']:^45}  {zone['scoreB']:^15} "
+                        if args.bar:
+                            score = float(zone.get("scoreA" if args.score_a else "scoreB", 0))
+                            frag_bar = generate_fragmentation_bar(score)
+                            line += f" {frag_bar:^40}\n"  
+                        else:
+                            line+="\n"
                         if row < max_rows - 1:  # 确保不超出屏幕行数
                             if len(line) < max_cols - 1:  # 确保行内字符数不超出屏幕宽度
                                 screen.addstr(row, 0, line,color)

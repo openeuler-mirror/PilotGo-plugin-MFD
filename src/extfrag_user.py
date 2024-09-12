@@ -26,7 +26,7 @@ def main(screen):
     parser.add_argument('-e', '--score_a', action='store_true', help='Only output extfrag_index')
     parser.add_argument('-u', '--score_b', action='store_true', help='Only output unusable_index')
     parser.add_argument('-s', '--output_count', action='store_true', help='Output fragmentation count')
-        # parser.add_argument('-b', '--bar', action='store_true', help='Display fragmentation bar')
+    parser.add_argument('-b', '--bar', action='store_true', help='Display fragmentation bar')
     parser.add_argument('-z', '--zone_info', action='store_true', help='Display detailed zone information')
     args = parser.parse_args()
 
@@ -112,10 +112,10 @@ def main(screen):
                                f"{zone['free_blocks_suitable']:^25} {zone['free_pages']:^25} {zone['node_id']:^25} {zone['scoreA']:^20} {zone['scoreB']:^25}\n"
                         if row < max_rows - 1:  # 确保不超出屏幕行数
                             if len(line) < max_cols - 1:  # 确保行内字符数不超出屏幕宽度
-                                screen.addstr(row, 0, line)
+                                screen.addstr(row, 0, line,color)
                                 row += 1
                             else:
-                                screen.addstr(row, 0, line[:max_cols - 1])
+                                screen.addstr(row, 0, line[:max_cols - 1],color)
                                 row += 1
             else:
                  # 获取并打印关键信息
@@ -123,7 +123,6 @@ def main(screen):
                     zone_data = extfrag.get_zone_data(args.node_id)
                 else:
                     zone_data = extfrag.get_zone_data()
-                color = curses.color_pair(1)
                 if args.score_a:
                     header =f"{'ZONE_COMM':<30}  {'NODE_ID':<23} {'ORDER':>40} {'extfrag_index':>52} \n"
                 elif args.score_b:
@@ -136,6 +135,7 @@ def main(screen):
                     if args.comm and comm != args.comm:
                         continue  
                     for zone in zones:
+                        color = curses.color_pair(1)
                         if zone['order'] > 5 and float(zone['scoreB']) > 0.5:
                              color = curses.color_pair(2)  # 红色，表示高风险
                         if args.score_a :
@@ -146,10 +146,10 @@ def main(screen):
                             line = f"{zone['comm']:^7}  {zone['node_id']:^55}  {zone['order']:^55} {zone['scoreA']:^45}  {zone['scoreB']:^15} \n"
                         if row < max_rows - 1:  # 确保不超出屏幕行数
                             if len(line) < max_cols - 1:  # 确保行内字符数不超出屏幕宽度
-                                screen.addstr(row, 0, line)
+                                screen.addstr(row, 0, line,color)
                                 row += 1
                             else:
-                                screen.addstr(row, 0, line[:max_cols - 1])
+                                screen.addstr(row, 0, line[:max_cols - 1],color)
                                 row += 1
 
 

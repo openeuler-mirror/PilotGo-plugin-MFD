@@ -107,7 +107,7 @@ int kprobe__get_page_from_freelist(struct pt_regs *ctx, gfp_t gfp_mask,
   struct zoneref *zref;
   int i, tmp, index, res;
   unsigned int a_order;
-
+  
   pgdat = ac->preferred_zoneref->zone->zone_pgdat;
 
   for (i = 0; i < MAX_NR_ZONES; i++) {

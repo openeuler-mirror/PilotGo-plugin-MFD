@@ -92,7 +92,7 @@ def main(screen):
                          f"{'ORDER':>15} {'TOTAL':>20} {'SUITABLE':>20} {'FREE':>20} {'NODE_ID':>20} {'unusable_index':>25} "
                 else:
                     header = f"{'ZONE_COMM':>5} {'ZONE_PFN':>15} {'SUM_PAGES':>20} {'FACT_PAGES':>20} " \
-                         f"{'ORDER':>15} {'TOTAL':>20} {'SUITABLE':>20} {'FREE':>20} {'NODE_ID':>20} {'extfrag_index':>25} {'unusable_index':>25}"
+                         f"{'ORDER':>15} {'TOTAL':>20} {'SUITABLE':>20} {'FREE':>20} {'NODE_ID':>20} {'extfrag_index':>25} {'unusable_index':>20}"
                 if args.bar:
                     header+=f"{'BAR':>25}\n"
                 else:

@@ -6,7 +6,7 @@ import ctypes
 
 class ExtFrag:
     def __init__(self, interval=2, output_score_a=False, output_score_b=False,output_count=False):
-        self.isNUMA = self.is_numa()
+        # self.isNUMA = self.is_numa()
         self.interval = interval
         self.output_score_a = output_score_a
         self.output_score_b = output_score_b
@@ -21,13 +21,13 @@ class ExtFrag:
         delay_key = 0
         self.b["delay_map"][delay_key] = ctypes.c_int(interval)
 
-    def is_numa(self):
-        nodes_path = "/sys/devices/system/node/"
-        try:
-            nodes = [node for node in os.listdir(nodes_path) if node.startswith("node")]
-            return len(nodes) > 1
-        except FileNotFoundError:
-            return False
+    # def is_numa(self):
+    #     nodes_path = "/sys/devices/system/node/"
+    #     try:
+    #         nodes = [node for node in os.listdir(nodes_path) if node.startswith("node")]
+    #         return len(nodes) > 1
+    #     except FileNotFoundError:
+    #         return False
 
     def calculate_scoreA(self, score_a):
         score_a_int_part = int(score_a) // 1000

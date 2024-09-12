@@ -87,6 +87,7 @@ def create_node_table(extfrag, args):
     
     # 获取节点数据并更新全局数组
     node_data = extfrag.get_node_data()
+    add_or_update_node_data(node_data.values())
 
     # 遍历全局数组中的所有节点并将其数据添加到表格行中
     for node in all_node_data:
@@ -253,7 +254,7 @@ def refresh_data(loop, user_data):
         main_widget = create_zone_table(extfrag,args)
     else:
         main_widget = create_score_table(extfrag,args)
-        # main_widget = create_zone_table(extfrag, args)
+
     loop.widget = main_widget
     loop.set_alarm_in(args.delay, refresh_data, user_data) 
 

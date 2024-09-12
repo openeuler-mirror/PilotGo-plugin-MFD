@@ -311,7 +311,7 @@ def main():
         args = parser.parse_args()
         
         extfrag = ExtFrag(interval=args.delay if args.delay else 2, output_count=args.output_count,
-                          output_score_a=args.score_a, output_score_b=args.score_b)
+                          output_score_a=args.score_a, output_score_b=args.score_b,zone_info=args.zone_info)
 
         global loop, main_widget
 
@@ -323,7 +323,6 @@ def main():
             main_widget = create_zone_table(extfrag,args)
         else:
             main_widget = create_score_table(extfrag,args)
-            # main_widget = create_zone_table(extfrag, args)
 
         loop = urwid.MainLoop(main_widget, palette, unhandled_input=handle_input)
         if args.output_count:

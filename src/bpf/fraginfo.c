@@ -23,7 +23,14 @@ struct zone_info {
   int score_b;
   int node_id;
 };
-
+struct alloc_context {
+	struct zonelist *zonelist;
+	nodemask_t *nodemask;
+	struct zoneref *preferred_zoneref;
+	int migratetype;
+	enum zone_type highest_zoneidx;
+	bool spread_dirty_pages;
+};
 struct contig_page_info {
   unsigned long free_pages;
   unsigned long free_blocks_total;
@@ -33,6 +40,8 @@ struct contig_page_info {
 
 BPF_HASH(pgdat_map, u32, struct pgdat_info);
 BPF_HASH(zone_map, u32, struct zone_info);
+BPF_HASH(last_time_map, u64, u64);
+BPF_ARRAY(delay_map, int, 1);
 
 static int unusable_free_index(unsigned int order,
                                struct contig_page_info *info) {
@@ -77,24 +86,33 @@ static void fill_contig_page_info(struct zone *zone,
   }
 }
 
-int kprobe__rmqueue_bulk(struct pt_regs *ctx, struct zone *zone,
-                         unsigned int order, unsigned long count,
-                         struct list_head *list, int migratetype,
-                         unsigned int alloc_flags) {
+int kprobe__get_page_from_freelist(struct pt_regs *ctx, gfp_t gfp_mask, unsigned int order, int alloc_flags,const struct alloc_context *ac) {
+                           u64 *last_time, current_time;
+  current_time = bpf_ktime_get_ns();  // 获取当前时间
+  last_time = last_time_map.lookup(&current_time);
+  int key = 0;
+    int *delay_ptr = delay_map.lookup(&key);
+    int delay;
+    if (delay_ptr) {
+        delay = *delay_ptr;
+    }
+  if (last_time && (current_time - *last_time < delay*1000000000)) {
+    return 0; 
+  }
   struct pgdat_info pgdat_data = {};
   struct zone_info zone_data = {};
   struct pglist_data *pgdat;
   struct zone *z;
   int i, tmp, index;
   unsigned int a_order;
-  u32 key = 0;
+  u32 node_key = 0;
 
-  pgdat = zone->zone_pgdat;
+  pgdat=ac->preferred_zoneref->zone->zone_pgdat;
   pgdat_data.pgdat_ptr = (u64)pgdat;
   pgdat_data.nr_zones = pgdat->nr_zones;
   pgdat_data.node_id = pgdat->node_id;
 
-  pgdat_map.update(&key, &pgdat_data);
+  pgdat_map.update(&node_key, &pgdat_data);
 
   for (i = 0; i < MAX_NR_ZONES; i++) {
     if (i >= pgdat_data.nr_zones) {
@@ -123,5 +141,6 @@ int kprobe__rmqueue_bulk(struct pt_regs *ctx, struct zone *zone,
       key++;
     }
   }
+  last_time_map.update(&current_time, &current_time);
   return 0;
 }

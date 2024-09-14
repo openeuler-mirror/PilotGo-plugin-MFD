@@ -87,7 +87,7 @@ static void fill_contig_page_info(struct zone *zone,
 }
 
 int kprobe__get_page_from_freelist(struct pt_regs *ctx, gfp_t gfp_mask, unsigned int order, int alloc_flags,const struct alloc_context *ac) {
-                           u64 *last_time, current_time;
+  u64 *last_time, current_time;
   current_time = bpf_ktime_get_ns();  // 获取当前时间
   last_time = last_time_map.lookup(&current_time);
   int key = 0;

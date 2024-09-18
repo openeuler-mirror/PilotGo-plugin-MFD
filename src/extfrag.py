@@ -95,7 +95,7 @@ class ExtFrag:
         # 从BPF哈希表中提取所有数据
         for key, value in counts_map.items():
             data = {
-                'comm':value.comm,
+                'pcomm':value.pcomm,
                 'pid': value.pid,
                 'pfn': value.pfn,
                 'alloc_order': value.alloc_order,
@@ -108,59 +108,13 @@ class ExtFrag:
         # 根据 'count' 字段进行降序排序
         count_data_list.sort(key=lambda x: x['count'], reverse=True)
 
-        # # 输出排序后的数据
-        # for data in count_data_list:
-        #     print(f"PID: {data['pid']}, PFN: {data['pfn']}, Alloc Order: {data['alloc_order']}, "
-        #           f"Fallback Order: {data['fallback_order']}, Count: {data['count']}")
-
         return count_data_list
-
-
-    def print_event(self, cpu, data, size):
-        event = self.b["events"].event(data)
-        print(" %4d %10lu %12d %15d %18d %18d %18d" % (
-            event.index,
-            event.pfn,
-            event.alloc_order,
-            event.fallback_order,
-            event.alloc_migratetype,
-            event.fallback_migratetype,
-            event.change_ownership,
-        ))
-
-    def get_event_data(self):
-        events_data = []
-
-        def collect_event(cpu, data, size):
-            event = self.b["events"].event(data)
-            event_dict = {
-                'index': event.index,
-                'pfn': event.pfn,
-                'alloc_order': event.alloc_order,
-                'fallback_order': event.fallback_order,
-                'alloc_migratetype': event.alloc_migratetype,
-                'fallback_migratetype': event.fallback_migratetype,
-                'change_ownership': event.change_ownership,
-            }
-            events_data.append(event_dict)
-
-        if self.output_count:
-            try:
-                self.b["events"].open_perf_buffer(collect_event)
-                self.b.perf_buffer_poll(timeout=100)
-            except KeyboardInterrupt:
-                print("Event collection interrupted by user.")
-            except Exception as e:
-                print(f"An error occurred while collecting events: {e}")
-
-        return events_data
 
     def run(self):
         if self.output_count:
             print("%-7s %-10s %-12s %-15s %-18s %-22s" % (
               "COMM",  "PID", "PFN", "ALLOC_ORDER", "FALLBACK_ORDER","COUNT"
             ))
-            # self.b["events"].open_perf_buffer(self.print_event)
         while True:
             try:
                 self.b.perf_buffer_poll(timeout=100)

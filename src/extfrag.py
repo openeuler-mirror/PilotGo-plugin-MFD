@@ -22,8 +22,6 @@ class ExtFrag:
 
         if self.output_count:
             self.b = BPF(src_file="./bpf/extfraginfo.c")
-        elif not self.isNUMA:
-            self.b = BPF(src_file="./bpf/fraginfo.c")
         else:
             self.b = BPF(src_file="./bpf/numafraginfo.c")
         delay_key = 0
@@ -111,13 +109,13 @@ class ExtFrag:
         return count_data_list
 
     def run(self):
-        if self.output_count:
-            print("%-7s %-10s %-12s %-15s %-18s %-22s" % (
-              "COMM",  "PID", "PFN", "ALLOC_ORDER", "FALLBACK_ORDER","COUNT"
-            ))
+        # if self.output_count:
+        #     print("%-7s %-10s %-12s %-15s %-18s %-22s" % (
+        #       "COMM",  "PID", "PFN", "ALLOC_ORDER", "FALLBACK_ORDER","COUNT"
+        #     ))
         while True:
             try:
-                self.b.perf_buffer_poll(timeout=100)
+                # self.b.perf_buffer_poll(timeout=100)
                 time.sleep(self.interval)
             except KeyboardInterrupt:
                 exit()

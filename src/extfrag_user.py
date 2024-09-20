@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import urwid
-import traceback  # 在文件开头导入traceback模块
+import traceback 
 from extfrag import ExtFrag
 
 # 定义颜色调色板
@@ -19,7 +19,7 @@ column_explanations = {
     "Node ID": "The unique identifier of the memory node.",
     "Number of Zones": "The number of memory zones associated with this node.",
     "PGDAT Pointer": "The memory address of the pgdat structure for this node.",
-    "COMM": "The name of the memory zone, e.g., DMA, Normal.",
+    "ZONE_COMM": "The name of the memory zone, e.g., DMA, Normal.",
     "ZONE_PFN": "Starting page frame number of the memory zone.",
     "SUM_PAGES": "Total number of pages in the zone.",
     "FACT_PAGES": "Number of pages in the zone currently in use.",
@@ -28,8 +28,8 @@ column_explanations = {
     "SUITABLE": "Number of blocks suitable for the allocation.",
     "FREE": "Total number of free pages in the zone.",
     "SCORE": "Score representing fragmentation (higher is worse).",
-    "SCORE1": "Score A: Score representing fragmentation based on metric A.",
-    "SCORE2": "Score B: Score representing fragmentation based on metric B.",
+    "__fragmentation_index": "Score A: Score representing fragmentation based on metric A.",
+    "unusable_free_index": "Score B: Score representing fragmentation based on metric B.",
     'NODE_ID': "Unique identifier for the node associated with this zone.",
     "FRAG_BAR": "A visual representation of the fragmentation score, where more '#' characters indicate higher fragmentation.",
     "PCOMM": "The name of the process that triggered the event",
@@ -87,7 +87,6 @@ def create_node_table(extfrag, args):
     
     # 获取节点数据并更新全局数组
     node_data = extfrag.get_node_data()
-    add_or_update_node_data(node_data.values())
 
     # 遍历全局数组中的所有节点并将其数据添加到表格行中
     for node in all_node_data:
@@ -105,15 +104,15 @@ def create_node_table(extfrag, args):
     return table_with_scroll
 def create_zone_table(extfrag, args):
     rows = []
-    base_header = ["COMM", "ZONE_PFN", "SUM_PAGES", "FACT_PAGES", 
+    base_header = ["ZONE_COMM", "ZONE_PFN", "SUM_PAGES", "FACT_PAGES", 
                   "ORDER", "TOTAL", "SUITABLE", "FREE", "NODE_ID"]
     score_columns = []
     if args.score_a:
-        score_columns.append("SCORE1")
+        score_columns.append("__fragmentation_index")
     elif args.score_b:
-        score_columns.append("SCORE2")
+        score_columns.append("unusable_free_index")
     else:
-        score_columns = ["SCORE1", "SCORE2"]
+        score_columns = ["__fragmentation_index", "unusable_free_index"]
     if args.bar:
         score_columns.append("FRAG_BAR")
     full_header = base_header + score_columns 
@@ -134,7 +133,7 @@ def create_zone_table(extfrag, args):
             # 确定是否整行标红
             try:
                 order_value = int(zone.get("order", 0))
-                scoreB_value = float(zone.get("scoreB", 0))
+                scoreB_value = float(zone.get("unusable_free_index", 0))
                 critical_style = order_value >= 5 and scoreB_value >= 0.5
             except ValueError:
                 critical_style = False
@@ -164,14 +163,14 @@ def create_zone_table(extfrag, args):
     return table_with_scroll
 def create_score_table(extfrag, args):
     rows = []
-    base_header = ["COMM",  "NODE_ID","ORDER"]
+    base_header = ["ZONE_COMM",  "NODE_ID","ORDER"]
     score_columns = []
     if args.score_a:
-        score_columns.append("SCORE1")
+        score_columns.append("__fragmentation_index")
     elif args.score_b:
-        score_columns.append("SCORE2")
+        score_columns.append("unusable_free_index")
     else:
-        score_columns = ["SCORE1", "SCORE2"]
+        score_columns = ["__fragmentation_index", "unusable_free_index"]
     if args.bar:
         score_columns.append("FRAG_BAR")
     full_header = base_header + score_columns 

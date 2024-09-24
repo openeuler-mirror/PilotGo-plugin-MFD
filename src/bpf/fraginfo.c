@@ -1,8 +1,8 @@
 #include <linux/gfp.h>
 #include <linux/mm.h>
+#include <linux/mmzone.h>
 #include <uapi/linux/ptrace.h>
 #define MAX_ORDER 10
-
 struct pgdat_info {
   u64 pgdat_ptr;
   int nr_zones;
@@ -24,22 +24,22 @@ struct zone_info {
   int node_id;
 };
 struct alloc_context {
-	struct zonelist *zonelist;
-	nodemask_t *nodemask;
-	struct zoneref *preferred_zoneref;
-	int migratetype;
-	enum zone_type highest_zoneidx;
-	bool spread_dirty_pages;
+  struct zonelist *zonelist;
+  nodemask_t *nodemask;
+  struct zoneref *preferred_zoneref;
+  int migratetype;
+  enum zone_type highest_zoneidx;
+  bool spread_dirty_pages;
 };
+
 struct contig_page_info {
   unsigned long free_pages;
   unsigned long free_blocks_total;
   unsigned long free_blocks_suitable;
 };
 
-
-BPF_HASH(pgdat_map, u32, struct pgdat_info);
-BPF_HASH(zone_map, u32, struct zone_info);
+BPF_HASH(pgdat_map, u64, struct pgdat_info);
+BPF_HASH(zone_map, u64, struct zone_info);
 BPF_HASH(last_time_map, u64, u64);
 BPF_ARRAY(delay_map, int, 1);
 
@@ -86,59 +86,79 @@ static void fill_contig_page_info(struct zone *zone,
   }
 }
 
-int kprobe__get_page_from_freelist(struct pt_regs *ctx, gfp_t gfp_mask, unsigned int order, int alloc_flags,const struct alloc_context *ac) {
+int kprobe__get_page_from_freelist(struct pt_regs *ctx, gfp_t gfp_mask,
+                                   unsigned int order, int alloc_flags,
+                                   const struct alloc_context *ac) {
   u64 *last_time, current_time;
   current_time = bpf_ktime_get_ns();  // 获取当前时间
   last_time = last_time_map.lookup(&current_time);
   int key = 0;
-    int *delay_ptr = delay_map.lookup(&key);
-    int delay;
-    if (delay_ptr) {
-        delay = *delay_ptr;
-    }
-  if (last_time && (current_time - *last_time < delay*1000000000)) {
-    return 0; 
+  int *delay_ptr = delay_map.lookup(&key);
+  int delay;
+  if (delay_ptr) {
+    delay = *delay_ptr;
   }
-  struct pgdat_info pgdat_data = {};
-  struct zone_info zone_data = {};
+  if (last_time && (current_time - *last_time < delay * 1000000000)) {
+    return 0;
+  }
+
   struct pglist_data *pgdat;
   struct zone *z;
-  int i, tmp, index;
+  struct zoneref *zref;
+  int i, tmp, index, res;
   unsigned int a_order;
-  u32 node_key = 0;
 
-  pgdat=ac->preferred_zoneref->zone->zone_pgdat;
-  pgdat_data.pgdat_ptr = (u64)pgdat;
-  pgdat_data.nr_zones = pgdat->nr_zones;
-  pgdat_data.node_id = pgdat->node_id;
-
-  pgdat_map.update(&node_key, &pgdat_data);
+  pgdat = ac->preferred_zoneref->zone->zone_pgdat;
 
   for (i = 0; i < MAX_NR_ZONES; i++) {
-    if (i >= pgdat_data.nr_zones) {
-      break;
+    struct zone_info zone_data = {};
+    struct pgdat_info pgdat_data = {};
+    struct pgdat_info *a_pgdat;
+    struct pglist_data *pgdata;
+    u64 node_key, zone_key;
+    zref = &pgdat->node_zonelists[ZONELIST_FALLBACK]._zonerefs[i];
+    z = zref->zone;
+    if (!z)
+      continue;
+
+    // 更新node信息
+    pgdata = z->zone_pgdat;
+    if (!pgdata)
+      continue;
+    node_key = (u64)pgdata;
+    a_pgdat = pgdat_map.lookup(&node_key);
+    if (!a_pgdat) {
+      pgdat_data.pgdat_ptr = (u64)pgdata->node_start_pfn;
+      pgdat_data.nr_zones = pgdata->nr_zones;
+      pgdat_data.node_id = pgdata->node_id;
+      pgdat_map.update(&node_key, &pgdat_data);
     }
-    z = &pgdat->node_zones[i];
+    // 更新zone信息
     zone_data.zone_ptr = (u64)z;
+
     zone_data.zone_start_pfn = z->zone_start_pfn;
     zone_data.spanned_pages = z->spanned_pages;
     zone_data.present_pages = z->present_pages;
     zone_data.node_id = z->zone_pgdat->node_id;
     bpf_probe_read_kernel_str(&zone_data.name, sizeof(zone_data.name), z->name);
+
     for (a_order = 0; a_order <= MAX_ORDER; ++a_order) {
       zone_data.order = a_order;
+      zone_key = zone_data.zone_ptr + zone_data.order;
+
       struct contig_page_info ctg_info;
       fill_contig_page_info(z, a_order, &ctg_info);
       zone_data.free_blocks_suitable = ctg_info.free_blocks_suitable;
       zone_data.free_blocks_total = ctg_info.free_blocks_total;
       zone_data.free_pages = ctg_info.free_pages;
-  
+
       tmp = unusable_free_index(a_order, &ctg_info);
       zone_data.score_b = tmp;
       index = __fragmentation_index(a_order, &ctg_info);
       zone_data.score_a = index;
-      zone_map.update(&key, &zone_data);
-      key++;
+
+      zone_map.update(&zone_key, &zone_data);
+      zone_key++;
     }
   }
   last_time_map.update(&current_time, &current_time);

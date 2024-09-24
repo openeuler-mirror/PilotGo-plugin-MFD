@@ -5,29 +5,21 @@ import time
 import ctypes
 
 class ExtFrag:
-    def __init__(self, interval=2, output_score_a=False, output_score_b=False,output_count=False):
-        self.isNUMA = self.is_numa()
+    def __init__(self, interval=2, output_score_a=False, output_score_b=False,output_count=False,zone_info=False):
         self.interval = interval
         self.output_score_a = output_score_a
         self.output_score_b = output_score_b
         self.output_count = output_count
+        self.zone_info=zone_info
         
  
 
         if self.output_count:
             self.b = BPF(src_file="./bpf/extfraginfo.c")
         else:
-            self.b = BPF(src_file="./bpf/numafraginfo.c")
+            self.b = BPF(src_file="./bpf/fraginfo.c")
         delay_key = 0
         self.b["delay_map"][delay_key] = ctypes.c_int(interval)
-
-    def is_numa(self):
-        nodes_path = "/sys/devices/system/node/"
-        try:
-            nodes = [node for node in os.listdir(nodes_path) if node.startswith("node")]
-            return len(nodes) > 1
-        except FileNotFoundError:
-            return False
 
     def calculate_scoreA(self, score_a):
         score_a_int_part = int(score_a) // 1000
@@ -82,7 +74,7 @@ class ExtFrag:
         
     def get_count_data(self):
         count_data_list = []
-        counts_map = self.b["counts_map"]  # 'counts_map' 是 BPF 程序中的哈希表名
+        counts_map = self.b["counts_map"]  
 
         # 从BPF哈希表中提取所有数据
         for key, value in counts_map.items():

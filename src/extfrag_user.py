@@ -87,6 +87,7 @@ def create_node_table(extfrag, args):
     
     # 获取节点数据并更新全局数组
     node_data = extfrag.get_node_data()
+    add_or_update_node_data(node_data.values())
 
     # 遍历全局数组中的所有节点并将其数据添加到表格行中
     for node in all_node_data:
@@ -253,7 +254,7 @@ def refresh_data(loop, user_data):
         main_widget = create_zone_table(extfrag,args)
     else:
         main_widget = create_score_table(extfrag,args)
-        # main_widget = create_zone_table(extfrag, args)
+
     loop.widget = main_widget
     loop.set_alarm_in(args.delay, refresh_data, user_data) 
 
@@ -290,9 +291,9 @@ def main():
         parser.add_argument('-d', '--delay', type=int, help='Delay between updates in seconds', default=2)   
         parser.add_argument('-n', '--node_info', action='store_true', help='Output node information')
         parser.add_argument('-i', '--node_id', type=int, help='Specify Node ID to get zone information')
-        parser.add_argument('-c', '--comm', type=str, help='Filter by comm name')
-        parser.add_argument('-e', '--score_a', action='store_true', help='Only output score_a')
-        parser.add_argument('-u', '--score_b', action='store_true', help='Only output score_b')
+        parser.add_argument('-c', '--comm', type=str, help='Filter by zone_comm name')
+        parser.add_argument('-e', '--score_a', action='store_true', help='Only output __fragmentation_index')
+        parser.add_argument('-u', '--score_b', action='store_true', help='Only output unusable_index')
         parser.add_argument('-s', '--output_count', action='store_true', help='Output fragmentation count')
         parser.add_argument('-b', '--bar', action='store_true', help='Display fragmentation bar')
         parser.add_argument('-z', '--zone_info', action='store_true', help='Display detailed zone information')

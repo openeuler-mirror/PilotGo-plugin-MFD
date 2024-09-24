@@ -4,12 +4,6 @@ import os
 import time
 import ctypes
 
-def get_node_data_addr():
-    with open("/proc/kallsyms", "r") as f:
-        for line in f:
-            if "node_data" in line:
-                return int(line.split()[0], 16)
-    return None
 class ExtFrag:
     def __init__(self, interval=2, output_score_a=False, output_score_b=False,output_count=False):
         self.isNUMA = self.is_numa()
@@ -71,7 +65,6 @@ class ExtFrag:
                 zone_data_dict[comm].sort(key=lambda x: x['order'])
 
         return zone_data_dict
-
     def get_node_data(self):
         node_data_dict = {}
         pgdat_map = self.b["pgdat_map"]
@@ -86,6 +79,7 @@ class ExtFrag:
             node_data_dict[node_id] = data
 
         return node_data_dict
+        
     def get_count_data(self):
         count_data_list = []
         counts_map = self.b["counts_map"]  # 'counts_map' 是 BPF 程序中的哈希表名
@@ -109,13 +103,8 @@ class ExtFrag:
         return count_data_list
 
     def run(self):
-        # if self.output_count:
-        #     print("%-7s %-10s %-12s %-15s %-18s %-22s" % (
-        #       "COMM",  "PID", "PFN", "ALLOC_ORDER", "FALLBACK_ORDER","COUNT"
-        #     ))
         while True:
             try:
-                # self.b.perf_buffer_poll(timeout=100)
                 time.sleep(self.interval)
             except KeyboardInterrupt:
                 exit()

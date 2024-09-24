@@ -10,7 +10,7 @@ class ExtFrag:
         self.output_score_a = output_score_a
         self.output_score_b = output_score_b
         self.output_count = output_count
-        self.zone_info=zone_info
+        self.zone_info = zone_info
         
  
 
@@ -21,6 +21,7 @@ class ExtFrag:
         delay_key = 0
         self.b["delay_map"][delay_key] = ctypes.c_int(interval)
 
+    
     def calculate_scoreA(self, score_a):
         score_a_int_part = int(score_a) // 1000
         score_a_dec_part = int(score_a) % 1000
@@ -31,12 +32,15 @@ class ExtFrag:
         score_b_dec_part = int(score_b) % 1000
         return f"{score_b_int_part:2d}.{score_b_dec_part:03d}"
 
-    def get_zone_data(self):
+    def get_zone_data(self,filter_node_id=None):
         zone_data_dict = {}
         zone_map = self.b["zone_map"]
 
         for key, value in zone_map.items():
             comm = value.name.decode('utf-8', 'replace').rstrip('\x00')
+            node_id =value.node_id
+            if filter_node_id is not None and node_id != filter_node_id:
+                continue
             data = {
                 'comm': comm,
                 'zone_pfn': value.zone_start_pfn,
@@ -57,6 +61,8 @@ class ExtFrag:
                 zone_data_dict[comm].sort(key=lambda x: x['order'])
 
         return zone_data_dict
+   
+
     def get_node_data(self):
         node_data_dict = {}
         pgdat_map = self.b["pgdat_map"]
@@ -74,12 +80,13 @@ class ExtFrag:
         
     def get_count_data(self):
         count_data_list = []
-        counts_map = self.b["counts_map"]  
+        counts_map = self.b["counts_map"]  # 'counts_map' 是 BPF 程序中的哈希表名
 
         # 从BPF哈希表中提取所有数据
         for key, value in counts_map.items():
+            _comm = value.pcomm.decode('utf-8', 'replace').rstrip('\x00')
             data = {
-                'pcomm':value.pcomm,
+                'pcomm':_comm,
                 'pid': value.pid,
                 'pfn': value.pfn,
                 'alloc_order': value.alloc_order,
@@ -87,6 +94,7 @@ class ExtFrag:
                 'count': value.count
                 
             }
+            
             count_data_list.append(data)
 
         # 根据 'count' 字段进行降序排序

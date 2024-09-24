@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-import argparse
 import traceback 
 import time
 import curses
+import sys
 from extfrag import ExtFrag
 
 def generate_fragmentation_bar(score, max_length=20):
@@ -23,28 +23,79 @@ def main(screen):
     curses.init_pair(6, curses.COLOR_CYAN, curses.COLOR_BLACK)
     curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_BLACK)
 
-    parser = argparse.ArgumentParser(description='Watch memory fragmentation with real-time updates')
-    parser.add_argument('-d', '--delay', type=int, help='Delay between updates in seconds', default=2)   
-    parser.add_argument('-n', '--node_info', action='store_true', help='Output node information')
-    parser.add_argument('-i', '--node_id', type=int, help='Specify Node ID to get zone information')
-    parser.add_argument('-c', '--comm', type=str, help='Filter by zone_comm name')
-    parser.add_argument('-e', '--score_a', action='store_true', help='Only output extfrag_index')
-    parser.add_argument('-u', '--score_b', action='store_true', help='Only output unusable_index')
-    parser.add_argument('-s', '--output_count', action='store_true', help='Output fragmentation count')
-    parser.add_argument('-b', '--bar', action='store_true', help='Display fragmentation bar')
-    parser.add_argument('-z', '--zone_info', action='store_true', help='Display detailed zone information')
-    args = parser.parse_args()
+    #? Argument parser ------------------------------------------------------------------------------->
+    if len(sys.argv) > 1:
+        for arg in sys.argv[1:]:
+            if not arg in ["-d", "-n", "-i", "-c", "-h", "--help", "-e", "-u", "-b", "-s", "-z"]:
+                screen.clear()
+                msg = f'Unrecognized argument: {arg}\n'\
+                f'Use argument -h or --help for help'
+                screen.addstr(0, 0, msg,curses.color_pair(2))
+                screen.refresh()
+                time.sleep(1000000000)
+    if "-h" in sys.argv or "--help" in sys.argv:
+        screen.clear()
+        header1 =f"Usage: {sys.argv[0]} [argument]\n\n"\
+        f'Arguments:\n'\
+		f'    -d, --delay           Delay between updates in seconds (default: 2)\n'\
+		f'    -n, --node_info       Output node informations\n'\
+		f'    -i, --node_id         Specify Node ID to get zone information\n'\
+		f'    -c, --comm            Filter by zone_comm name\n'\
+        f'    -e, --score_a         Only output extfrag_index\n'\
+		f'    -u, --score_b         Only output unusable_index\n'\
+		f'    -s, --output_count    Output fragmentation count\n'\
+		f'    -b, --bar             Display fragmentation bar\n'\
+		f'    -z, --zone_info       Display detailed zone information\n'\
+		f'    -h, --help            Show this help message and exit\n'
+        screen.addstr(0, 0, header1)
+        screen.refresh()
+        time.sleep(1000000000)
+    # 解析参数
+    args = {
+        'delay': 2,  # 默认值
+        'node_info': False,
+        'node_id': None,
+        'comm': None,
+        'score_a': False,
+        'score_b': False,
+        'output_count': False,
+        'bar': False,
+        'zone_info': False,
+    }
+    for i in range(1, len(sys.argv)):
+        arg = sys.argv[i]
+        if arg in ['-d', '--delay']:
+            args['delay'] = int(sys.argv[i + 1])
+        elif arg in ['-n', '--node_info']:
+            args['node_info'] = True
+        elif arg in ['-i', '--node_id']:
+            args['node_id'] = int(sys.argv[i + 1])
+        elif arg in ['-c', '--comm']:
+            args['comm'] = sys.argv[i + 1]
+        elif arg in ['-e', '--score_a']:
+            args['score_a'] = True
+        elif arg in ['-u', '--score_b']:
+            args['score_b'] = True
+        elif arg in ['-s', '--output_count']:
+            args['output_count'] = True
+        elif arg in ['-b', '--bar']:
+            args['bar'] = True
+        elif arg in ['-z', '--zone_info']:
+            args['zone_info'] = True
 
-    extfrag = ExtFrag(interval=args.delay if args.delay else 2, output_count=args.output_count,
-                          output_score_a=args.score_a, output_score_b=args.score_b,zone_info=args.zone_info)
-
+    extfrag = ExtFrag(
+    interval=args['delay'],
+    output_count=args['output_count'],
+    output_score_a=args['score_a'],
+    output_score_b=args['score_b'],
+    zone_info=args['zone_info'])
     try:
         while True:
             screen.clear()
             row = 0
             max_rows, max_cols = screen.getmaxyx()
 
-            if args.node_info:
+            if args['node_info']:
                 # 获取并打印节点信息
                 node_data = extfrag.get_node_data()
                 if not node_data:
@@ -62,7 +113,7 @@ def main(screen):
                             else:
                                 screen.addstr(row, 0, line[:max_cols - 1])
                                 row += 1
-            elif args.output_count:
+            elif args['output_count']:
                 event_data = extfrag.get_count_data()
                 header = f"{'COMM':>25} {'PID':>30} {'PFN':>45}" \
                          f"{'ALLOC_ORDER':>45} {'FALLBACK_ORDER':>45} {'COUNT':>35} \n"
@@ -78,40 +129,40 @@ def main(screen):
                             screen.addstr(row, 0, line[:max_cols - 1])
                             row += 1
 
-            elif args.zone_info:
+            elif args['zone_info']:
                 # 获取并打印区域信息
-                if args.node_id is not None:
-                    zone_data = extfrag.get_zone_data(args.node_id)
+                if  args['node_id'] is not None:
+                    zone_data = extfrag.get_zone_data(args['node_id'])
                 else:
                     zone_data = extfrag.get_zone_data()
-                if args.score_a:
+                if args['score_a']:
                      header =f"{'ZONE_COMM':>5} {'ZONE_PFN':>15} {'SUM_PAGES':>20} {'FACT_PAGES':>20} " \
                          f"{'ORDER':>15} {'TOTAL':>20} {'SUITABLE':>20} {'FREE':>20} {'NODE_ID':>20} {'extfrag_index':>25}"
-                elif args.score_b:
+                elif args['score_b']:
                     header =  f"{'ZONE_COMM':>5} {'ZONE_PFN':>15} {'SUM_PAGES':>20} {'FACT_PAGES':>20} " \
                          f"{'ORDER':>15} {'TOTAL':>20} {'SUITABLE':>20} {'FREE':>20} {'NODE_ID':>20} {'unusable_index':>25} "
                 else:
                     header = f"{'ZONE_COMM':>5} {'ZONE_PFN':>15} {'SUM_PAGES':>20} {'FACT_PAGES':>20} " \
                          f"{'ORDER':>15} {'TOTAL':>20} {'SUITABLE':>20} {'FREE':>20} {'NODE_ID':>20} {'extfrag_index':>25} {'unusable_index':>20}"
-                if args.bar:
+                if  args['bar']:
                     header+=f"{'BAR':>25}\n"
                 else:
                     header+="\n"
                 screen.addstr(0, 0, header,curses.color_pair(4))
                 row = 1
                 for comm, zones in zone_data.items():
-                    if args.comm and comm != args.comm:
+                    if  args['comm'] and comm !=  args['comm']:
                         continue   
         
                     for zone in zones:
                         color = curses.color_pair(1)
                         if zone['order'] > 5 and float(zone['scoreB']) > 0.5:
                              color = curses.color_pair(2)  # 红色，表示高风险
-                        if args.score_a :
+                        if args['score_a'] :
                             line = f"{zone['comm']:^9} {zone['zone_pfn']:^20} {zone['spanned_pages']:^22} " \
                                f"{zone['present_pages']:^18} {zone['order']:^15} {zone['free_blocks_total']:^25} " \
                                f"{zone['free_blocks_suitable']:^15} {zone['free_pages']:^25} {zone['node_id']:^15} {zone['scoreA']:^20} "
-                        elif  args.score_b:
+                        elif  args['score_b']:
                             line = f"{zone['comm']:^9} {zone['zone_pfn']:^20} {zone['spanned_pages']:^22} " \
                                f"{zone['present_pages']:^18} {zone['order']:^15} {zone['free_blocks_total']:^25} " \
                                f"{zone['free_blocks_suitable']:^15} {zone['free_pages']:^25} {zone['node_id']:^15} {zone['scoreB']:^20} "
@@ -119,8 +170,8 @@ def main(screen):
                             line = f"{zone['comm']:^9} {zone['zone_pfn']:^20} {zone['spanned_pages']:^22} " \
                                f"{zone['present_pages']:^18} {zone['order']:^15} {zone['free_blocks_total']:^25} " \
                                f"{zone['free_blocks_suitable']:^15} {zone['free_pages']:^25} {zone['node_id']:^15} {zone['scoreA']:^20} {zone['scoreB']:^25}"
-                        if args.bar:
-                            score = float(zone.get("scoreA" if args.score_a else "scoreB", 0))
+                        if args['bar']:
+                            score = float(zone.get("scoreA" if args['score_a'] else "scoreB", 0))
                             frag_bar = generate_fragmentation_bar(score)
                             line += f" {frag_bar:^40}\n" 
                         else:
@@ -134,37 +185,37 @@ def main(screen):
                                 row += 1
             else:
                  # 获取并打印关键信息
-                if args.node_id is not None:
-                    zone_data = extfrag.get_zone_data(args.node_id)
+                if args['node_id'] is not None:
+                    zone_data = extfrag.get_zone_data(args['node_id'])
                 else:
                     zone_data = extfrag.get_zone_data()
-                if args.score_a:
+                if args['score_a']:
                     header =f"{'ZONE_COMM':<30}  {'NODE_ID':<23} {'ORDER':>40} {'extfrag_index':>52} "
-                elif args.score_b:
+                elif args['score_b']:
                     header = f"{'ZONE_COMM':<30}  {'NODE_ID':<23} {'ORDER':>40}  {'unusable_index':>52} "
                 else:
                     header = f"{'ZONE_COMM':<30}  {'NODE_ID':<23} {'ORDER':>40} {'extfrag_index':>52} {'unusable_index':>30} "
-                if args.bar:
+                if  args['bar']:
                     header+=f"{'BAR':>25}\n"
                 else:
                     header+="\n"
                 screen.addstr(row, 0, header,curses.color_pair(4))
                 row = 1
                 for comm, zones in zone_data.items():
-                    if args.comm and comm != args.comm:
+                    if  args['comm'] and comm !=  args['comm']:
                         continue  
                     for zone in zones:
                         color = curses.color_pair(1)
                         if zone['order'] > 5 and float(zone['scoreB']) > 0.5:
                              color = curses.color_pair(2)  # 红色，表示高风险
-                        if args.score_a :
+                        if args['score_a'] :
                             line = f"{zone['comm']:^7}  {zone['node_id']:^55}  {zone['order']:^55} {zone['scoreA']:^45} "
-                        elif  args.score_b:
+                        elif  args['score_b']:
                             line = f"{zone['comm']:^7}  {zone['node_id']:^55}  {zone['order']:^55} {zone['scoreB']:^45} "
                         else:
                             line = f"{zone['comm']:^7}  {zone['node_id']:^55}  {zone['order']:^55} {zone['scoreA']:^45}  {zone['scoreB']:^15} "
-                        if args.bar:
-                            score = float(zone.get("scoreA" if args.score_a else "scoreB", 0))
+                        if  args['bar']:
+                            score = float(zone.get("scoreA" if args['score_a'] else "scoreB", 0))
                             frag_bar = generate_fragmentation_bar(score)
                             line += f" {frag_bar:^40}\n"  
                         else:
@@ -179,7 +230,7 @@ def main(screen):
 
 
             screen.refresh()
-            time.sleep(args.delay)
+            time.sleep(args['delay'])
 
     except KeyboardInterrupt:
         pass

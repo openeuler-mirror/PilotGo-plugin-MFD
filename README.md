@@ -178,7 +178,6 @@ sudo dnf install bcc
 
 ```
 .
-.
 ├── img
 ├── README.en.md
 ├── README.md

@@ -180,7 +180,6 @@ Then, navigate into the PilotGo-plugin-MFD directory.
 
 ```
 .
-.
 ├── img
 ├── README.en.md
 ├── README.md

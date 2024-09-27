@@ -5,10 +5,10 @@ import time
 import ctypes
 
 class ExtFrag:
-    def __init__(self, interval=2, output_score_a=False, output_score_b=False,output_count=False,zone_info=False):
+    def __init__(self, interval=2, output_extfrag_index=False, output_unusable_index=False,output_count=False,zone_info=False):
         self.interval = interval
-        self.output_score_a = output_score_a
-        self.output_score_b = output_score_b
+        self.output_extfrag_index = output_extfrag_index
+        self.output_unusable_index = output_unusable_index
         self.output_count = output_count
         self.zone_info = zone_info
         
@@ -22,15 +22,15 @@ class ExtFrag:
         self.b["delay_map"][delay_key] = ctypes.c_int(interval)
 
     
-    def calculate_scoreA(self, score_a):
-        score_a_int_part = int(score_a) // 1000
-        score_a_dec_part = int(score_a) % 1000
-        return f"{score_a_int_part:2d}.{score_a_dec_part:03d}"
+    def calculate_scoreA(self, extfrag_index):
+        extfrag_index_int_part = int(extfrag_index) // 1000
+        extfrag_index_dec_part = int(extfrag_index) % 1000
+        return f"{extfrag_index_int_part:2d}.{extfrag_index_dec_part:03d}"
 
-    def calculate_scoreB(self, score_b):
-        score_b_int_part = int(score_b) // 1000
-        score_b_dec_part = int(score_b) % 1000
-        return f"{score_b_int_part:2d}.{score_b_dec_part:03d}"
+    def calculate_scoreB(self, unusable_index):
+        unusable_index_int_part = int(unusable_index) // 1000
+        unusable_index_dec_part = int(unusable_index) % 1000
+        return f"{unusable_index_int_part:2d}.{unusable_index_dec_part:03d}"
 
     def get_zone_data(self,filter_node_id=None):
         zone_data_dict = {}
@@ -61,7 +61,26 @@ class ExtFrag:
                 zone_data_dict[comm].sort(key=lambda x: x['order'])
 
         return zone_data_dict
-   
+    def get_view_data(self, filter_node_id=None):
+        zone_data_dict = {}
+        zone_map = self.b["zone_map"]
+
+        for key, value in zone_map.items():
+            comm = value.name.decode('utf-8', 'replace').rstrip('\x00')
+            node_id = value.node_id
+            
+            if filter_node_id is not None and node_id != filter_node_id:
+                continue
+
+            data = {
+                'scoreB': self.calculate_scoreB(value.score_b),
+                'order': value.order,
+            }
+            
+            # 使用 (node_id, comm) 作为键
+            zone_data_dict[(node_id, comm)] = data
+
+        return zone_data_dict
 
     def get_node_data(self):
         node_data_dict = {}

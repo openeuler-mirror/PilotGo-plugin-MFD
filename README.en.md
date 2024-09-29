@@ -8,7 +8,9 @@ Linux System Physical Memory Fragmentation Visualization Monitoring Tool
 
 ### Project Description
 
-This project primarily develops a visualization monitoring tool for physical memory fragmentation in Linux systems, aimed at monitoring and recording the degree of physical memory fragmentation in the currently running system. The main features of this project include:
+This project primarily develops a visualization monitoring tool for physical memory fragmentation in Linux systems, aimed at monitoring and recording the degree of physical memory fragmentation in the currently running system. 
+
+The main features of this project include:
 
 - Periodically collecting information on the degree of physical memory fragmentation in the current system environment, with configurable intervals;
 
@@ -28,9 +30,9 @@ This project primarily develops a visualization monitoring tool for physical mem
 
 This project is developed based on BCC, so it requires the installation of the BCC environment. For detailed instructions, refer to the [documentation](https://github.com/iovisor/bcc/blob/master/INSTALL.md). Here, I will introduce how to configure the BCC environment on Ubuntu and OpenEuler.
 
-## Configuring BCC on Ubuntu
+## Ubuntu
 
-Generally, to use these features, you need a Linux kernel version of 4.1 or higher. You can check your kernel version with uname -r.
+Generally, to use these features, you need a Linux kernel version of 4.1 or higher. You can check your kernel version with` uname -r`.
 
 <div align=center>
 <img src="./img/2.png" alt="内核配置" div-align="center"/>
@@ -104,7 +106,7 @@ popd
 
  `No module named 'setuptools'`
 
-Solution: The setuptools module is not installed by default in Python. Install it using sudo apt-get install python3-setuptools.
+Solution: The setuptools module is not installed by default in Python. Install it using `sudo apt-get install python3-setuptools`.
 
 ### Test if Installation is Successful
 
@@ -113,16 +115,30 @@ cd bcc/tools
 ls
 ```
 
-Run ls to see many Python files, then execute sudo python3 biolatency.py. If it runs successfully, the environment is configured correctly.
+Run ` ls` to see many Python files, then execute `sudo python3 biolatency.py`. If it runs successfully, the environment is configured correctly.
 
 <div align=center>
 <img src="./img/1.png" alt="image-20240528221443832" div-align="center"/>
 </div>
 
 
+##  OpenEuler
+
+
+### Pre-installed package
+
+When installing the openEuler system, it is best to select "Software selection ==> Additional software for the selected environment ==> development tools", which will save the installation of many development tools, such as git, python3 and so on.
+
+** If not checked, we can install the corresponding development tool by the following command: **
+
+```
+sudo  dnf install git -y
+sudo dnf update
+sudo dnf install python3 python3-pip
+```
 ## Configuring BCC on OpenEuler
 
-Generally, to use these features, you need a Linux kernel version of 4.1 or higher. You can check your kernel version with uname -r.
+Generally, to use these features, you need a Linux kernel version of 4.1 or higher. You can check your kernel version with `uname -r`.
 
 <div align=center>
 <img src="./img/17.png" alt="内核配置" div-align="center"/>
@@ -139,7 +155,7 @@ Run the command.
 sudo dnf update
 sudo dnf install bcc
 ```
-These two commands update the packages and will automatically install the related environment and tools for BCC development, such as bpf-tools, python3-bpfcc, llvm-libs, clang-libs, etc.
+These two commands update the packages and will automatically install the related environment and tools for BCC development, such as `bpf-tools, python3-bpfcc, llvm-libs, clang-libs`.
 
 <div align=center>
 <img src="./img/12.png" alt="image-20240528221443832" div-align="center"/>
@@ -152,13 +168,13 @@ These two commands update the packages and will automatically install the relate
 
 ### Error Record
 
-After installation, we enter the default installation directory /usr/share/bcc and see a folder named tools. When entering this folder and running a binary file with sudo, we encounter an error. To resolve this, we need to execute sudo dnf install kernel-devel-$(uname -r) to install the development package for the currently running kernel version.
+After installation, we enter the default installation directory /usr/share/bcc and see a folder named tools. When entering this folder with `cd /usr/share/bcc/tools` and running a binary file with sudo, we encounter an error. To resolve this, we need to execute` sudo dnf install kernel-devel-$(uname -r)` to install the development package for the currently running kernel version.
 
 <div align=center>
 <img src="./img/14.png" alt="image-20240528221443832" div-align="center"/>
 </div>
 
-After that, executing sudo ./execsnoop successfully captures output, indicating that the BCC environment has been configured correctly through the package installation.
+After that, Run `sudo ./execsnoop`again. The terminal output data, as shown in the following figure, shows that the bcc environment is configured using a software package.
 
 <div align=center>
 <img src="./img/15.png" alt="image-20240528221443832" div-align="center"/>
@@ -168,6 +184,7 @@ After that, executing sudo ./execsnoop successfully captures output, indicating 
 ## Clone Repository
 
 In the OpenEuler environment, the process is similar to that in Ubuntu. Here’s how to use the memory fragmentation tool in the OpenEuler environment.
+
 Clone the project code to your local machine using:
 
 ```
@@ -193,7 +210,7 @@ Then, navigate into the PilotGo-plugin-MFD directory.
         └── extfrag.cpython-311.pyc
 ```
 
-- `extfrag.py` : This file implements the BPF program and data collection.
+- `extfrag.py` : used to implement the function of extracting data in the corresponding format.
 
 - `extfrag_user.py` : This file implements the command-line interface.
 - `extfraginfo.c`:  Implements monitoring of external fragmentation events.
@@ -219,25 +236,31 @@ Collected Fragmentation Information:
 
 Collected Node Information:
 
-- Node ID: Represents the identifier of the memory node.
+- NODE_ID: Represents the identifier of the memory node.
 - Number of Zones: The number of zones within the node.
-- PGDAT Pointer: The pointer address of the node's pgdat structure.
+- NODE_START_PFN: The start page frame number of memory node.
 
-## Required Package Installation
-Install the following packages using the command:
+The collected external fragmentation event information is as follows:
 
-```
-pip install curses
-pip install bcc
-pip install numba
-pip install pytest
-```
-If you encounter errors, as shown in the example, you will need to modify the extfrag.py code:
-- In Ubuntu, we compile from source and configure the BCC environment, so in extfrag.py, we import BPF using from bpf import BPF.
-- In OpenEuler, we configure the BCC environment using packages, so in extfrag.py, we import BPF using from bpfcc import BPF.
+- COMM: indicates the name of the process where the external fragmentation event occurs
+- PID: indicates the ID of the process where the external fragmentation event occurs
+- PFN: indicates the frame number of the actual physical page
+- ALLOC_ORDER: indicates the initial memory allocation order
+- FALLBACK_ORDER: The number of blocks of memory actually allocated when the allocation request cannot be fulfilled
+- COUNT: indicates the number of external fragmentation events
+
+##  Error message
+After running `sudo python3./extfrag_user.py`, you get the following error:
+
 <div align=center>
 <img src="./img/16.png" alt="image-20240528221443832" div-align="center"/>
 </div>
+
+If you encounter errors, as shown in the example, you will need to modify the `extfrag.py` code:
+
+- In Ubuntu, we compile from source and configure the BCC environment, so in extfrag.py, we import BPF using `from bpf import BPF`.
+- In OpenEuler, we configure the BCC environment using packages, so in extfrag.py, we import BPF using `from bpfcc import BPF`.
+
 
 **To avoid having to explicitly use the python command to run the scripts each time, you can add a shebang line to the scripts and ensure they have executable permissions.**。
 
@@ -249,7 +272,11 @@ chmod +x extfrag_user.py
 chmod +x extfrag.py
 ```
 
-Now you can directly run the script using sudo ./extfrag_user.py.
+Now you can directly run the script using `sudo ./extfrag_user.py`.
+
+## Running environment
+- In the UMA test environment, the system is a 3.3GB VM configured with one memory node (Node0), which contains three memory regions.
+- In a test environment based on the NUMA architecture, the system is a server with 128GB memory configured with two memory nodes. Node0 contains three memory regions, and Node1 contains one memory region.
 
 ## Usage Steps
 
@@ -326,47 +353,54 @@ Now you can directly run the script using sudo ./extfrag_user.py.
 <img src="./img/9.png" alt="image-20240528221443832" div-align="center"/>
 </div>
 
-- Use `sudo ./extfrag_user.py -v` to visualize the fragmentation information of all zones under the UMA architecture.
+- Use `sudo ./extfrag_user.py -v` to visualize the fragmentation information of all zones under the NUMA architecture.
 <div align=center>
 <img src="./img/10.png" alt="image-20240528221443832" div-align="center"/>
 </div>
 
-# 测试方法
-The memory fragmentation monitoring tool primarily monitors the fragmentation levels of different orders within each zone. We will use stress-ng for load testing to determine if our memory fragmentation tool can dynamically adjust based on the collected zone information.
-
-In the first terminal, run our memory fragmentation monitoring tool, and in a second terminal, use stress-ng to apply pressure and observe whether the memory fragmentation level increases.
-
-## UMA Architecture Testing
-
-- In Terminal 1, run `sudo ./extfrag_user.py -b` to check the memory fragmentation level before the load test.
-<div align=center>
-<img src="./img/19.png" alt="image-20240528221443832" div-align="center"/>
-</div>
-
-- In Terminal 2, perform a load test using 5 processes to occupy 2G of memory.
-
+4. Use 'sudo./extfrag_user.py -s' to view the details of the process that has external fragmentation in the system and the number of external fragmentation cases.
 <div align=center>
 <img src="./img/18.png" alt="image-20240528221443832" div-align="center"/>
 </div>
 
-- After an interval of 10 seconds, run `sudo ./extfrag_user.py -b` to check the memory fragmentation level after the load test.
+# Test method
+## Test tools
+The memory fragmentation monitoring tool primarily monitors the fragmentation levels of different orders within each zone. We will use `stress-ng` for load testing to determine if our memory fragmentation tool can dynamically adjust based on the collected zone information.
+
+The `stress-ng too`l is installed by `sudo dnf install stress-ng`. The specific method of use [reference documentation](https://manpages.ubuntu.com/manpages/focal/man1/stress-ng.1.html), please.
+
+## Specific test method
+After restarting the system, run the memory fragmentation monitoring tool on the first terminal, and re-open one terminal to stress with stress-ng to see if the system's memory fragmentation increases.
+## Test effect
+### UMA Architecture Testing
+
+- In Terminal 1, run `sudo ./extfrag_user.py -v` to check the memory fragmentation level before the load test.
+<div align=center>
+<img src="./img/19.png" alt="image-20240528221443832" div-align="center"/>
+</div>
+
+- Terminal 2 Run the `stress-ng --vm 5 --vm-bytes 3G` command to perform a stress test. Five processes occupy 3G memory
+
+
+- After an interval of 20 seconds, run `sudo ./extfrag_user.py -v` to check the memory fragmentation level after the load test.
 <div align=center>
 <img src="./img/20.png" alt="image-20240528221443832" div-align="center"/>
 </div>
 
 
 
-## NUMA Architecture Testing
+### NUMA Architecture Testing
 
-- In Terminal 1, run `sudo ./extfrag_user.py -b` to check the memory fragmentation level before the load test.
+- In Terminal 1, run `sudo ./extfrag_user.py -v` to check the memory fragmentation level before the load test.
 <div align=center>
 <img src="./img/24.png" alt="image-20240528221443832" div-align="center"/>
 </div>
 
-- In Terminal 2, perform a load test using 5 processes to occupy 2G of memory.
+- Terminal 2 Run the `stress-ng --vm 5 --vm-bytes 5G` command to perform a stress test. Five processes occupy 5G memory
 
 
-- After an interval of 10 seconds, run` sudo ./extfrag_user.py -b `to check the memory fragmentation level after the load test.
+- After an interval of 40 seconds, run` sudo ./extfrag_user.py -v`to check the memory fragmentation level after the load test.
+
 <div align=center>
 <img src="./img/25.png" alt="image-20240528221443832" div-align="center"/>
 </div>

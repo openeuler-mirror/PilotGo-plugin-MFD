@@ -2,7 +2,9 @@
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <uapi/linux/ptrace.h>
+
 #define MAX_ORDER 10
+
 struct pgdat_info {
   u64 pgdat_ptr;
   int nr_zones;

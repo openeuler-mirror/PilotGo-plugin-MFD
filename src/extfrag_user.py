@@ -4,6 +4,7 @@ import time
 import curses
 import sys
 from extfrag import ExtFrag
+from datetime import datetime
 
 
 def generate_fragmentation_bar(score, max_length=20):
@@ -66,6 +67,8 @@ def screenEnough(screen):
 
 def main(screen):
     _boo = False
+    _show=False
+    last_update_time = time.time()
     curses.curs_set(0)  # 隐藏光标 
     screen.nodelay(True) 
     curses.noecho()
@@ -85,7 +88,11 @@ def main(screen):
 
     try:
         if len(sys.argv) > 1:
-            for arg in sys.argv[1:]:
+            args = sys.argv[1:]
+            arg_count = len(args)
+            i=0
+            while i<arg_count:
+                arg=args[i]
                 if arg.startswith('-') and  arg not in ["-d", "-n", "-i", "-c", "-h", "--help", "-e", "-u", "-b", "-s", "-z","-v"]:
                     screen.clear()
                     height, width = screen.getmaxyx()
@@ -95,6 +102,44 @@ def main(screen):
                     screen.addstr(height // 2 + 1, abs(width - len(notemsg)) // 2, notemsg, curses.A_REVERSE)
                     screen.refresh()
                     time.sleep(100)
+                elif arg=='-d':
+                    if i + 1 >= arg_count or not args[i + 1].isdigit():
+                        screen.clear()
+                        height, width = screen.getmaxyx()
+                        errmsg = f'[ERROR] Unrecognized argument: {arg}\n'
+                        screen.addstr(height // 2, abs(width - len(errmsg)) // 2, errmsg, curses.color_pair(2) | curses.A_BOLD)
+                        notemsg = "Use argument -h or --help for help"
+                        screen.addstr(height // 2 + 1, abs(width - len(notemsg)) // 2, notemsg, curses.A_REVERSE)
+                        screen.refresh()
+                        time.sleep(100)
+                    i+=1
+                elif arg=='-i':
+                    if i + 1 >= arg_count or not args[i + 1].isdigit():
+                        screen.clear()
+                        height, width = screen.getmaxyx()
+                        errmsg = f'[ERROR] Unrecognized argument: {arg}\n'
+                        screen.addstr(height // 2, abs(width - len(errmsg)) // 2, errmsg, curses.color_pair(2) | curses.A_BOLD)
+                        notemsg = "Use argument -h or --help for help"
+                        screen.addstr(height // 2 + 1, abs(width - len(notemsg)) // 2, notemsg, curses.A_REVERSE)
+                        screen.refresh()
+                        time.sleep(100)
+                    i+=1 
+                elif arg=='-c':
+                    valid_options = ["Moveable", "DMA", "Normal","DMA32","Device"]
+                    if i + 1 >= arg_count or args[i + 1] not in valid_options:
+                        screen.clear()
+                        height, width = screen.getmaxyx()
+                        errmsg = f'[ERROR] Unrecognized argument: {arg}\n'
+                        screen.addstr(height // 2, abs(width - len(errmsg)) // 2, errmsg, curses.color_pair(2) | curses.A_BOLD)
+                        notemsg = "Use argument -h or --help for help"
+                        screen.addstr(height // 2 + 1, abs(width - len(notemsg)) // 2, notemsg, curses.A_REVERSE)
+                        screen.refresh()
+                        time.sleep(100)
+                    else:
+                        i+=1
+                i+=1
+
+                
         if "-h" in sys.argv or "--help" in sys.argv:
             screenEnough(screen)
             if not _boo:
@@ -160,9 +205,9 @@ def main(screen):
             output_extfrag_index=args['extfrag_index'],
             output_unusable_index=args['unusable_index'],
             zone_info=args['zone_info'])
-
+            screen.clear()
             while True:
-                    screen.clear()
+                    # screen.clear()
                     row = 0
                     max_rows, max_cols = screen.getmaxyx()
 
@@ -171,10 +216,8 @@ def main(screen):
                         if not _boo:
                             # 获取并打印节点信息
                             node_data = extfrag.get_node_data()
-                            if not node_data:
-                                screen.addstr(row, 0, header,curses.color_pair(4))
-                            else:
-                                header = f"{'Node ID':>45} {'Number of Zones':>65} {'PGDAT Pointer':>70}\n"
+                            if  node_data:
+                                header = f"{'NODE_ID':>45} {'Number of Zones':>65} {'NODE_START_PFN':>70}\n"
                                 screen.addstr(row, 0, header,curses.color_pair(4))
                                 row += 1
                                 for node_id, node in node_data.items():
@@ -262,9 +305,17 @@ def main(screen):
                                             row += 1
                             
                     elif args['view']:
-                            curses.initscr()
+                            # curses.initscr()
                             screenEnough(screen)
-                            if not _boo:
+                            current_time = datetime.now().strftime('%Y--%m-%d：%H:%M:%S')
+                            screen.addstr(0, 0, current_time)
+                            screen.refresh()
+                            current_time = time.time()
+                            if current_time - last_update_time >= args['delay']:
+                                _show = True
+                                last_update_time=current_time
+                            if not _boo and _show:
+                                _show = False
                                 # 获取并打印关键信息
                                 if args['node_id'] is not None:
                                     view_data = extfrag.get_view_data(args['node_id'])
@@ -272,10 +323,12 @@ def main(screen):
                                 else:
                                     view_data = extfrag.get_view_data()
                                     zone_data = extfrag.get_zone_data()
+                            
 
-                                y_pos =1
-                                row=2  
+                                y_pos =2
+                                row=3
                                 bars = {}
+                                current_progress = {}
                                 for (node_id, comm), zones in view_data.items():
                                         if args['comm'] and comm != args['comm']:
                                             continue
@@ -285,6 +338,7 @@ def main(screen):
                                             pbar = createBar(3, 21, y_pos, 22 + (i * 21), str(i))
                                             setProgress(pbar, 0) 
                                             bars[(node_id, comm, i)] = pbar   # 保存小窗口
+                                            current_progress[(node_id, comm, i)] = 0  # 初始化为0
                                         y_pos+=3
                                         row+=3
                                 for comm, zones in zone_data.items():
@@ -298,8 +352,11 @@ def main(screen):
                                         progress = float(progress) 
                                         key = (node_id, comm, order)
                                         if key in bars:
+                                            if progress != current_progress[key]:
+                                                current_progress[key] = progress  
                                                 progress*=100
-                                                setProgress(bars[key], progress)  # 更新进度条
+                                                setProgress(bars[key], progress)
+                                                
                     else:
                         screenEnough(screen)
                         if not _boo:
@@ -347,9 +404,11 @@ def main(screen):
                                             screen.addstr(row, 0, line[:max_cols - 1],color)
                                             row += 1
 
-
-                    screen.refresh()
-                    time.sleep(args['delay'])
+                    if args['view']:
+                        screen.refresh()
+                    else:
+                        screen.refresh()
+                        time.sleep(args['delay'])
                
 
  

@@ -79,20 +79,42 @@ class ExtFrag:
             
             # 使用 (node_id, comm) 作为键
             zone_data_dict[(node_id, comm)] = data
-
         return zone_data_dict
+    def get_nr_zones(self, filter_node_id=None):
+        node_zone_map = {} 
+        zone_map = self.b["zone_map"]
 
+        for key, value in zone_map.items():
+            comm = value.name.decode('utf-8', 'replace').rstrip('\x00')
+            node_id = value.node_id
+            
+            if filter_node_id is not None and node_id != filter_node_id:
+                continue
+
+            data = {
+                'scoreB': self.calculate_scoreB(value.score_b),
+                'order': value.order,
+            }
+            
+            # 使用 (node_id, comm) 作为键
+            if node_id not in node_zone_map:
+                node_zone_map[node_id] = []  # 初始化列表
+            node_zone_map[node_id].append(comm)  # 追加 comm
+
+        return node_zone_map
     def get_node_data(self):
         node_data_dict = {}
         pgdat_map = self.b["pgdat_map"]
+        zone_data = self.get_nr_zones()
 
         for key, value in pgdat_map.items():
+            node_id = value.node_id
+            nr_zones =  int(len(zone_data.get(node_id, []))/11)
             data = {
                 'pgdat_ptr': value.pgdat_ptr,
-                'nr_zones': value.nr_zones,
+                'nr_zones': nr_zones,
                 'node_id': value.node_id
             }
-            node_id = value.node_id
             node_data_dict[node_id] = data
 
         return node_data_dict

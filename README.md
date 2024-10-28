@@ -22,14 +22,14 @@ Linux系统物理内存碎片可视化监控工具
  - 内核态：eBPF
  - 用户态：Python
 
- 这里主要是基于[BCC](https://github.com/iovisor/bcc)进行开发，在内核态使用 eBPF ，用户态使用 Python进行开发
+ 这里主要是基于[BCC](https://github.com/iovisor/bcc)进行开发，在内核态使用 eBPF ，用户态使用 Python进行开发。
 
 
 # BCC环境配置
 
-本项目基于BCC进行开发，因此需要安装BCC环境，[参考文档](https://github.com/iovisor/bcc/blob/master/INSTALL.md)，这里我介绍一下在Ubuntu下和 openeuler下配置 BCC 的环境
+本项目基于BCC进行开发，因此需要安装BCC环境，[参考文档](https://github.com/iovisor/bcc/blob/master/INSTALL.md)，这里介绍一下在Ubuntu下和 openeuler下配置 BCC 的环境。
 
-## Ubuntu环境配置BCC
+## Ubuntu 系统
 
 一般来说，要使用这些功能，需要 Linux 内核版本 4.1 或更高版本，内核版本通过`uname -r`来查看
 
@@ -116,7 +116,7 @@ cd bcc/tools
 ls
 ```
 
-执行ls会发现有很多python文件，执行`sudo python3 biolatency.py`
+执行`ls`会发现有很多python文件，执行`sudo python3 biolatency.py`
 
 <div align=center>
 <img src="./img/1.png" alt="image-20240528221443832" div-align="center"/>
@@ -124,7 +124,19 @@ ls
 
 
 此时则代表环境配置成功
-## openeuler环境配置BCC
+## openEuler 系统
+
+### 预先安装的软件包
+在安装 openEuler 系统时，我们最好勾选“ 软件选择 ==> 已选环境的附加软件 ==> 开发工具”，这样会免去安装很多开发工具，例如 git、python3 等
+
+**如果没有勾选，我们可以通过以下命令安装相应的开发工具：**
+
+```
+sudo  dnf install git -y
+sudo dnf update
+sudo dnf install python3 python3-pip
+```
+### bcc环境配置
 
 一般来说，要使用这些功能，需要 Linux 内核版本 4.1 或更高版本，内核版本通过`uname -r`来查看
 
@@ -155,13 +167,15 @@ sudo dnf install bcc
 
 
 ### 报错记录
-安装完成之后，我们进入到默认的安装目录`/usr/share/bcc`中，可以看到有个文件夹`tools`。进入该文件夹下，使用sudo运行一个二进制文件结果如下报错，我们需要去执行`sudo dnf install kernel-devel-$(uname -r)`安装当前运行内核版本的开发包即可解决。
+安装完成之后，我们进入到默认的安装目录`/usr/share/bcc`中，可以看到有个文件夹`tools`。
+
+通过`cd /usr/share/bcc/tools`进入该文件夹下，使用sudo运行一个二进制文件结果如下报错，我们需要去执行`sudo dnf install kernel-devel-$(uname -r)`安装当前运行内核版本的开发包即可解决。
 
 <div align=center>
 <img src="./img/14.png" alt="image-20240528221443832" div-align="center"/>
 </div>
 
-再次执行`sudo  ./execsnoop`成功截图，说明bcc环境通过软件包的形式配置好了
+再次执行`sudo  ./execsnoop`,终端输出数据，如下图，说明bcc环境通过软件包的形式配置好了
 
 <div align=center>
 <img src="./img/15.png" alt="image-20240528221443832" div-align="center"/>
@@ -171,7 +185,7 @@ sudo dnf install bcc
 ## 克隆仓库
 在openeuler环境下和Ubuntu环境下类似，这里介绍的是openeuler环境下如何使用内存碎片化工具。
 
-通过`git clone git@gitee.com:gyxforeveryoung/PilotGo-plugin-MFD.git`项目代码到本地，进入到PilotGo-plugin-MFD
+通过`git clone git@gitee.com:gyxforeveryoung/PilotGo-plugin-MFD.git`克隆项目代码到本地，进入到PilotGo-plugin-MFD文件夹中。
 
 
 ## 代码架构
@@ -191,7 +205,7 @@ sudo dnf install bcc
         └── extfrag.cpython-311.pyc
 ```
 
-- `extfrag.py` 文件，用于实现 BPF 程序和数据采集
+- `extfrag.py` 文件，用于实现提取相应格式的数据函数
 
 - `extfrag_user.py` 文件，用于实现命令行接口
 
@@ -218,19 +232,20 @@ sudo dnf install bcc
 
 采集的节点信息如下：
 
-- Node ID:表示内存节点的标识符
-- Number of Zones:节点中的区域个数
-- PGDAT Pointer:节点的 `pgdat` 结构体指针地址
+- NODE_ID：表示内存节点的标识符
+- Number of Zones：节点中的区域个数
+- NODE_START_PFN：节点的 `pgdat` 的起始页帧号
 
-## 安装所需的包
-通过命令安装以下包：
-```
-pip install curses
-pip install bcc
-pip install numba
-pip install pytest
-```
-接着会报错，如下图：
+采集的外碎片化事件信息如下：
+- COMM：发生外碎片化事件的进程名
+- PID：发生外碎片化事件的进程号
+- PFN：表示实际分配的物理页的页帧号
+- ALLOC_ORDER：初始分配内存的阶数
+- FALLBACK_ORDER：在分配请求无法满足时，实际分配到的内存块的阶数
+- COUNT：发生外碎片化事件的次数
+## 错误信息
+运行`sudo python3 ./extfrag_user.py`之后，遇到如下报错：
+
 <div align=center>
 <img src="./img/16.png" alt="image-20240528221443832" div-align="center"/>
 </div>
@@ -252,6 +267,11 @@ chmod +x extfrag.py
 ```
 
 现在可以使用`sudo ./extfrag_user.py`来直接运行脚本
+
+## 运行环境
+
+- 在UMA架构的测试环境下，系统是一台3.3GB内存的虚拟机，系统有1个内存节点（Node0），其中包含3个内存区域。
+- 在NUMA架构的测试环境中，系统是一台拥有128GB内存的服务器，系统有2个内存节点，Node0包含3个内存区域，Node1包含1个内存区域。
 
 ## 使用步骤
 
@@ -335,44 +355,55 @@ chmod +x extfrag.py
 <img src="./img/10.png" alt="image-20240528221443832" div-align="center"/>
 </div>
 
-# 测试方法
-内存碎片化监测工具，监测的主要是每个zone当中对于不同的order的内存碎片化程度，我们这里使用stress-ng加压测试，来判断我们的内存碎片化工具是否能够根据采集到zone的信息去**动态**改变
-
-我们在第一个终端运行我们的内存碎片化监测工具，重新开启一个终端使用 stress-ng 进行加压，来观察我们的内存碎片化程度是否会增加。
-## UMA架构下测试
-
-- 终端1运行`sudo ./extfrag_user.py -b `查看压测前的内存碎片化程度 
-<div align=center>
-<img src="./img/19.png" alt="image-20240528221443832" div-align="center"/>
-</div>
-
-- 终端2进行加压测试，使用 5 个进程占用 2G 内存
+4.  使用`sudo ./extfrag_user.py -s`查看系统中发生外碎片化的进程的详细信息以及发生外碎片化的次数
 
 <div align=center>
 <img src="./img/18.png" alt="image-20240528221443832" div-align="center"/>
 </div>
 
-- 间隔10s，运行`sudo ./extfrag_user.py -b `查看压测后的内存碎片化程度
+# 测试方法
+
+## 测试工具
+内存碎片化监测工具，监测的主要是每个zone当中对于不同的order的内存碎片化程度，我们这里使用stress-ng加压测试，来判断我们的内存碎片化工具是否能够根据采集到zone的信息去**动态**改变
+
+stress-ng工具通过`sudo dnf install stress-ng`安装，具体使用方法请[参考文档](https://manpages.ubuntu.com/manpages/focal/man1/stress-ng.1.html)。
+
+
+
+## 具体测试方法
+重启系统后，在第一个终端运行内存碎片化监测工具，重新开启一个终端使用 stress-ng 进行加压，来观察系统的内存碎片化程度是否会增加。
+## 测试效果
+### UMA架构下测试
+
+- 终端1运行`sudo ./extfrag_user.py -v `查看压测前的内存碎片化程度 
+<div align=center>
+<img src="./img/19.png" alt="image-20240528221443832" div-align="center"/>
+</div>
+
+- 终端2执行命令`stress-ng --vm 5 --vm-bytes 3G`进行加压测试，使用 5 个进程占用 3G 内存
+
+
+- 间隔20s，运行`sudo ./extfrag_user.py -v `查看压测后的内存碎片化程度
 <div align=center>
 <img src="./img/20.png" alt="image-20240528221443832" div-align="center"/>
 </div>
 
 
 
-## NUMA架构下测试
+### NUMA架构下测试
 
-- 终端1运行`sudo ./extfrag_user.py -b `查看压测前的内存碎片化程度 
-<div align=center>
-<img src="./img/24.png" alt="image-20240528221443832" div-align="center"/>
-</div>
-
-- 终端2进行加压测试，使用 5 个进程占用 2G 内存
-
-
-
-- 间隔10s，运行`sudo ./extfrag_user.py -b `查看压测后的内存碎片化程度
+- 终端1运行`sudo ./extfrag_user.py -v `查看压测前的内存碎片化程度 
 <div align=center>
 <img src="./img/25.png" alt="image-20240528221443832" div-align="center"/>
+</div>
+
+- 终端2执行命令`stress-ng --vm 5 --vm-bytes 5G`进行加压测试，使用 5 个进程占用 5G 内存
+
+
+
+- 间隔40s，运行`sudo ./extfrag_user.py -v `查看压测后的内存碎片化程度
+<div align=center>
+<img src="./img/24.png" alt="image-20240528221443832" div-align="center"/>
 </div>
 
 通过对于加压前后对比系统内的内存碎片化结果，我们可以看出，在加压后，内存碎片化程度会显著增加。

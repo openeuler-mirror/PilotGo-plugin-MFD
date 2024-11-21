@@ -63,6 +63,7 @@ class ExtFrag:
         return zone_data_dict
     def get_view_data(self, filter_node_id=None):
         zone_data_dict = {}
+        ret_dict={}
         zone_map = self.b["zone_map"]
 
         for key, value in zone_map.items():
@@ -79,7 +80,10 @@ class ExtFrag:
             
             # 使用 (node_id, comm) 作为键
             zone_data_dict[(node_id, comm)] = data
-        return zone_data_dict
+        sorted_keys = sorted(zone_data_dict.keys())
+        for key in sorted_keys:
+            ret_dict[key]= zone_data_dict[key]
+        return ret_dict
     def get_nr_zones(self, filter_node_id=None):
         node_zone_map = {} 
         zone_map = self.b["zone_map"]

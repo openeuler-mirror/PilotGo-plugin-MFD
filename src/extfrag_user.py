@@ -332,10 +332,10 @@ def main(screen):
                                 for (node_id, comm), zones in view_data.items():
                                         if args['comm'] and comm != args['comm']:
                                             continue
-                                        _str = f"Node {node_id}, zone {comm}"
+                                        _str = f"Node {node_id}, zone {comm}   "
                                         screen.addstr(row, 0, _str)
                                         for i in range(11):  
-                                            pbar = createBar(3, 21, y_pos, 22 + (i * 21), str(i))
+                                            pbar = createBar(3, 21, y_pos, 24 + (i * 21), str(i))
                                             setProgress(pbar, 0) 
                                             bars[(node_id, comm, i)] = pbar   # 保存小窗口
                                             current_progress[(node_id, comm, i)] = 0  # 初始化为0
